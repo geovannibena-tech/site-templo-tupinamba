@@ -42,7 +42,7 @@ function App(){
     e.preventDefault(); setErro('')
     if(!supabase){setErro('A conexão com o Supabase ainda precisa ser configurada.'); return}
     const {error}=await supabase.auth.signInWithPassword({email,password})
-    if(error) setErro('E-mail ou senha inválidos.')
+    if(error) setErro(error.message)
   }
 
   if(!session) return <main className="login-wrap">
