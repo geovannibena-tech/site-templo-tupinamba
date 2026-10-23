@@ -373,3 +373,199 @@ tbody tr:hover { background: rgba(255,255,255,.025); }
   .card .big, .big { font-size: 21px; }
   h1, h2 { word-break: break-word; }
 }
+
+
+/* ===== V2 PREMIUM ===== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.kpi-card {
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(17,51,35,.95), rgba(6,28,19,.98));
+  color: var(--text);
+}
+
+button.kpi-card:hover {
+  border-color: #47765a;
+  transform: translateY(-2px);
+}
+
+.kpi-card span {
+  color: var(--gold);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+}
+
+.kpi-card strong {
+  margin: 10px 0 5px;
+  font-family: Cinzel, Georgia, serif;
+  font-size: 34px;
+  color: #fff8e9;
+}
+
+.kpi-card .money-kpi { font-size: 21px; }
+.kpi-card.warning { border-color: rgba(255,119,119,.28); }
+.kpi-card.success { border-color: rgba(126,215,163,.28); }
+
+.progress {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #061710;
+  border: 1px solid #28513a;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b68a2f, var(--gold-light));
+  transition: width .35s ease;
+}
+
+.dashboard-detail-grid {
+  display: grid;
+  grid-template-columns: 1.15fr .85fr;
+  gap: 18px;
+}
+
+.mini-list { display: grid; gap: 0; }
+
+.mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #214331;
+}
+
+.mini-row:last-child { border-bottom: 0; }
+.mini-row > div:first-child { display: grid; gap: 4px; }
+.mini-row small { color: var(--muted); }
+
+.search-input {
+  width: min(330px, 100%);
+  background: #061710;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 4px;
+}
+
+.filter-bar button { padding: 9px 13px; }
+.active-filter { background: var(--gold); color: #07130d; }
+
+.subheading { margin-top: 34px !important; }
+
+.central-gira {
+  margin-top: 30px;
+  padding: 20px;
+  border: 1px solid #315b42;
+  border-radius: 16px;
+  background: rgba(4,20,14,.38);
+}
+
+.gira-select { width: min(360px, 100%); }
+
+.gira-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.gira-stats > div {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid #284f39;
+  border-radius: 12px;
+}
+
+.gira-stats small {
+  color: var(--gold);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.gira-stats strong {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 25px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(5px);
+}
+
+.modal-card {
+  width: min(720px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 28px;
+  border: 1px solid #456c52;
+  border-radius: 22px;
+  background: #0a2118;
+  box-shadow: 0 30px 90px rgba(0,0,0,.55);
+}
+
+.payment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.payment-summary > div {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid #2b533c;
+  border-radius: 12px;
+  background: #071a12;
+}
+
+.payment-summary small { color: var(--muted); }
+.payment-summary strong { color: var(--gold-light); font-size: 18px; }
+
+.important-card {
+  border-color: rgba(231,187,85,.5);
+  background: linear-gradient(145deg, rgba(72,54,18,.28), rgba(10,33,23,.98));
+}
+
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-detail-grid { grid-template-columns: 1fr; }
+  .payment-summary, .gira-stats { grid-template-columns: 1fr; }
+  .modal-card { padding: 20px; }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+}
