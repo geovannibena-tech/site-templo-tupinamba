@@ -68,6 +68,16 @@ function App() {
 
   const [editFilho, setEditFilho] = useState(null)
   const [fichaFilho, setFichaFilho] = useState(null)
+  const [buscaFilho, setBuscaFilho] = useState('')
+  const [filtroFinanceiro, setFiltroFinanceiro] = useState('todos')
+  const [pagamentoModal, setPagamentoModal] = useState(null)
+  const [formPagamento, setFormPagamento] = useState({
+    valor: '',
+    data_pagamento: '',
+    forma_pagamento: 'Pix',
+    observacoes: ''
+  })
+  const [giraSelecionada, setGiraSelecionada] = useState('')
   const [novaGira, setNovaGira] = useState({})
   const [novoMaterial, setNovoMaterial] = useState({})
   const [novoAviso, setNovoAviso] = useState({})
@@ -304,69 +314,82 @@ function App() {
     await carregarAdmin()
   }
 
-  async function registrarPagamento(m) {
+  function abrirPagamento(m) {
     const restante = Math.max(
       0,
       Number(m.valor || 0) - Number(m.valor_pago || 0)
     )
 
-    const entrada = window.prompt(
-      `Valor a receber de ${m.nome}\nSaldo: ${dinheiro(restante)}`,
-      restante.toFixed(2)
+    setPagamentoModal(m)
+    setFormPagamento({
+      valor: restante.toFixed(2).replace('.', ','),
+      data_pagamento: hojeISO(),
+      forma_pagamento: 'Pix',
+      observacoes: ''
+    })
+  }
+
+  async function salvarPagamento(e) {
+    e.preventDefault()
+    if (!pagamentoModal) return
+
+    const restante = Math.max(
+      0,
+      Number(pagamentoModal.valor || 0) -
+        Number(pagamentoModal.valor_pago || 0)
     )
 
-    if (entrada === null) return
-
-    const valorNovo = Number(String(entrada).replace(',', '.'))
+    const valorNovo = Number(
+      String(formPagamento.valor || '').replace(',', '.')
+    )
 
     if (!valorNovo || valorNovo <= 0) {
       alert('Informe um valor válido.')
       return
     }
 
-    const forma = window.prompt(
-      'Forma de pagamento: Pix, Dinheiro, Cartão...',
-      'Pix'
-    )
+    if (valorNovo > restante + 0.001) {
+      alert(`O valor não pode ser maior que o saldo de ${dinheiro(restante)}.`)
+      return
+    }
 
-    if (forma === null) return
-
-    const totalPago = Math.min(
-      Number(m.valor || 0),
-      Number(m.valor_pago || 0) + valorNovo
-    )
+    const totalPago =
+      Number(pagamentoModal.valor_pago || 0) + valorNovo
 
     const { error: e1 } = await supabase
       .from('pagamentos')
       .insert({
-        mensalidade_id: m.id,
+        mensalidade_id: pagamentoModal.id,
         valor: valorNovo,
-        data_pagamento: hojeISO(),
-        forma_pagamento: forma,
-        observacoes: null
+        data_pagamento: formPagamento.data_pagamento || hojeISO(),
+        forma_pagamento: formPagamento.forma_pagamento || 'Pix',
+        observacoes: formPagamento.observacoes || null
       })
 
-    if (e1) {
-      alert(e1.message)
-      return
-    }
+    if (e1) return alert(e1.message)
+
+    const quitada =
+      totalPago >= Number(pagamentoModal.valor || 0) - 0.001
 
     const { error: e2 } = await supabase
       .from('mensalidades')
       .update({
         valor_pago: totalPago,
-        data_pagamento:
-          totalPago >= Number(m.valor || 0) ? hojeISO() : null,
-        forma_pagamento: forma
+        data_pagamento: quitada
+          ? (formPagamento.data_pagamento || hojeISO())
+          : null,
+        forma_pagamento: formPagamento.forma_pagamento || 'Pix'
       })
-      .eq('id', m.id)
+      .eq('id', pagamentoModal.id)
 
-    if (e2) {
-      alert(e2.message)
-      return
-    }
+    if (e2) return alert(e2.message)
 
-    alert('Pagamento registrado com sucesso.')
+    setPagamentoModal(null)
+    setMsg(
+      quitada
+        ? 'Pagamento registrado e mensalidade quitada.'
+        : 'Pagamento parcial registrado com sucesso.'
+    )
     await carregarAdmin()
   }
 
@@ -791,61 +814,146 @@ function App() {
 
         {pagina === 'dashboard' && (
           <>
-            <section className="grid">
-              <article className="card hero">
-                <span className="tag">FILHOS DA CASA</span>
-                <h3 className="big-number">{resumo.filhos}</h3>
-                <p>Filhos ativos cadastrados</p>
-              </article>
+            <section className="kpi-grid">
+              <button className="kpi-card" onClick={() => setPagina('filhos')}>
+                <span>FILHOS ATIVOS</span>
+                <strong>{resumo.filhos}</strong>
+                <small>Cadastros ativos</small>
+              </button>
 
-              <article className="card">
-                <span className="tag">PENDÊNCIAS</span>
-                <h3 className="big-number">{resumo.pendencias}</h3>
-                <p>Mensalidades atrasadas</p>
-              </article>
+              <button className="kpi-card warning" onClick={() => setPagina('mensalidades')}>
+                <span>PENDÊNCIAS</span>
+                <strong>{resumo.pendencias}</strong>
+                <small>Mensalidades atrasadas</small>
+              </button>
 
-              <article className="card">
-                <span className="tag">PREVISTO NO MÊS</span>
-                <h3>{dinheiro(resumo.previsto)}</h3>
-                <p>Total previsto em mensalidades</p>
-              </article>
+              <button className="kpi-card" onClick={() => setPagina('mensalidades')}>
+                <span>PREVISTO NO MÊS</span>
+                <strong className="money-kpi">{dinheiro(resumo.previsto)}</strong>
+                <small>Total previsto</small>
+              </button>
 
-              <article className="card">
-                <span className="tag">RECEBIDO NO MÊS</span>
-                <h3>{dinheiro(resumo.recebido)}</h3>
-                <p>Total recebido</p>
+              <button className="kpi-card success" onClick={() => setPagina('mensalidades')}>
+                <span>RECEBIDO NO MÊS</span>
+                <strong className="money-kpi">{dinheiro(resumo.recebido)}</strong>
+                <small>Total recebido</small>
+              </button>
+
+              <article className="kpi-card">
+                <span>SALDO A RECEBER</span>
+                <strong className="money-kpi">
+                  {dinheiro(Math.max(0, resumo.previsto - resumo.recebido))}
+                </strong>
+                <small>Em aberto no mês</small>
               </article>
             </section>
 
             <section className="card wide">
-              <span className="tag">GESTÃO DO TEMPLO</span>
-              <h3>Painel de Administração</h3>
+              <div className="section-heading">
+                <div>
+                  <span className="tag">DESEMPENHO FINANCEIRO</span>
+                  <h3>Recebimento do mês</h3>
+                </div>
+                <strong>
+                  {resumo.previsto > 0
+                    ? Math.round((resumo.recebido / resumo.previsto) * 100)
+                    : 0}%
+                </strong>
+              </div>
+              <div className="progress">
+                <div
+                  className="progress-bar"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      resumo.previsto > 0
+                        ? (resumo.recebido / resumo.previsto) * 100
+                        : 0
+                    )}%`
+                  }}
+                />
+              </div>
+            </section>
 
+            <section className="dashboard-detail-grid">
+              <article className="card">
+                <span className="tag">PRÓXIMA GIRA</span>
+                {giras[0] ? (
+                  <>
+                    <h3>{giras[0].titulo}</h3>
+                    <p className="big">
+                      {dataBR(giras[0].data_gira)} • {String(giras[0].horario || '').slice(0, 5)}
+                    </p>
+                    <p>{giras[0].orientacoes || 'Sem orientações cadastradas.'}</p>
+                    <button className="small" onClick={() => setPagina('giras')}>
+                      Abrir central da gira
+                    </button>
+                  </>
+                ) : (
+                  <p>Nenhuma gira cadastrada.</p>
+                )}
+              </article>
+
+              <article className="card">
+                <span className="tag">ÚLTIMOS RECEBIMENTOS</span>
+                <div className="mini-list">
+                  {pagamentos.slice(0, 5).map(p => {
+                    const mens = mensalidades.find(m => m.id === p.mensalidade_id)
+                    return (
+                      <div className="mini-row" key={p.id}>
+                        <div>
+                          <strong>{mens?.nome || 'Pagamento'}</strong>
+                          <small>{dataBR(p.data_pagamento)} • {p.forma_pagamento || '—'}</small>
+                        </div>
+                        <strong>{dinheiro(p.valor)}</strong>
+                      </div>
+                    )
+                  })}
+                  {!pagamentos.length && <p>Nenhum pagamento registrado.</p>}
+                </div>
+              </article>
+            </section>
+
+            <section className="card wide">
+              <span className="tag">PENDÊNCIAS DO MÊS</span>
+              <h3>Quem precisa de atenção</h3>
+              <div className="mini-list">
+                {mensalidades
+                  .filter(m => (m.situacao || statusMensalidade(m)) !== 'Pago')
+                  .slice(0, 6)
+                  .map(m => (
+                    <div className="mini-row" key={m.id}>
+                      <div>
+                        <strong>{m.nome || 'Filho da casa'}</strong>
+                        <small>Venceu em {dataBR(m.vencimento)}</small>
+                      </div>
+                      <div className="actions">
+                        <strong>
+                          {dinheiro(
+                            Math.max(0, Number(m.valor || 0) - Number(m.valor_pago || 0))
+                          )}
+                        </strong>
+                        <button className="small" onClick={() => abrirPagamento(m)}>
+                          Receber
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </section>
+
+            <section className="card wide">
+              <span className="tag">GESTÃO DO TEMPLO</span>
+              <h3>Ações rápidas</h3>
               <div className="admin-shortcuts">
-                <button onClick={gerarMensalidadesAgora}>
-                  ⚡ Gerar mensalidades do mês
-                </button>
-                <button onClick={() => setPagina('filhos')}>
-                  👥 Gerenciar filhos
-                </button>
-                <button onClick={() => setPagina('mensalidades')}>
-                  💰 Financeiro
-                </button>
-                <button onClick={() => setPagina('giras')}>
-                  📅 Calendário de giras
-                </button>
-                <button onClick={() => setPagina('materiais')}>
-                  🧳 Materiais
-                </button>
-                <button onClick={() => setPagina('avisos')}>
-                  📢 Avisos
-                </button>
-                <button onClick={() => setPagina('estudos')}>
-                  📚 Estudos
-                </button>
-                <button onClick={() => setPagina('sugestoes')}>
-                  💡 Sugestões
-                </button>
+                <button onClick={gerarMensalidadesAgora}>⚡ Gerar mensalidades</button>
+                <button onClick={() => setPagina('filhos')}>👥 Filhos</button>
+                <button onClick={() => setPagina('mensalidades')}>💰 Financeiro</button>
+                <button onClick={() => setPagina('giras')}>📅 Giras</button>
+                <button onClick={() => setPagina('materiais')}>🧳 Materiais</button>
+                <button onClick={() => setPagina('avisos')}>📢 Avisos</button>
+                <button onClick={() => setPagina('estudos')}>📚 Estudos</button>
+                <button onClick={() => setPagina('sugestoes')}>💡 Sugestões</button>
               </div>
             </section>
           </>
@@ -853,8 +961,18 @@ function App() {
 
         {pagina === 'filhos' && (
           <section className="card wide">
-            <span className="tag">CADASTRO</span>
-            <h3>Filhos da Casa</h3>
+            <div className="section-heading">
+              <div>
+                <span className="tag">CADASTRO</span>
+                <h3>Filhos da Casa</h3>
+              </div>
+              <input
+                className="search-input"
+                placeholder="Buscar filho pelo nome..."
+                value={buscaFilho}
+                onChange={e => setBuscaFilho(e.target.value)}
+              />
+            </div>
 
             <div className="table-wrap">
               <table>
@@ -869,7 +987,13 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filhos.map(f => (
+                  {filhos
+                    .filter(f =>
+                      String(f.nome || '')
+                        .toLowerCase()
+                        .includes(buscaFilho.toLowerCase())
+                    )
+                    .map(f => (
                     <tr key={f.id}>
                       <td>{f.nome}</td>
                       <td>{f.cargo || '—'}</td>
@@ -1057,12 +1181,24 @@ function App() {
                     <h3>{fichaFilho.nome}</h3>
                     <p>{fichaFilho.cargo || 'Sem cargo informado'}</p>
                   </div>
-                  <button
-                    className="ghost small"
-                    onClick={() => setFichaFilho(null)}
-                  >
-                    Fechar ficha
-                  </button>
+                  <div className="actions">
+                    {fichaFilho.telefone && (
+                      <a
+                        className="button-link small"
+                        href={`https://wa.me/55${String(fichaFilho.telefone).replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        WhatsApp
+                      </a>
+                    )}
+                    <button
+                      className="ghost small"
+                      onClick={() => setFichaFilho(null)}
+                    >
+                      Fechar ficha
+                    </button>
+                  </div>
                 </div>
 
                 <div className="profile-grid">
@@ -1157,6 +1293,23 @@ function App() {
           </section>
         )}
 
+                const gira = giras.find(g => g.id === p.gira_id)
+                          return (
+                            <tr key={p.id}>
+                              <td>{gira?.titulo || `Gira #${p.gira_id}`}</td>
+                              <td>{p.confirmado ? 'Sim' : 'Não'}</td>
+                              <td>{p.presente ? 'Presente' : 'Não marcado'}</td>
+                            </tr>
+                          )
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {pagina === 'mensalidades' && (
           <section className="card wide">
             <div className="section-heading">
@@ -1167,6 +1320,24 @@ function App() {
               <button onClick={gerarMensalidadesAgora}>
                 Gerar mensalidades do mês
               </button>
+            </div>
+
+            <div className="filter-bar">
+              {[
+                ['todos', 'Todos'],
+                ['pagos', 'Pagos'],
+                ['pendentes', 'Pendentes'],
+                ['atrasados', 'Atrasados'],
+                ['parciais', 'Parciais']
+              ].map(([valor, rotulo]) => (
+                <button
+                  key={valor}
+                  className={filtroFinanceiro === valor ? 'active-filter' : 'ghost'}
+                  onClick={() => setFiltroFinanceiro(valor)}
+                >
+                  {rotulo}
+                </button>
+              ))}
             </div>
 
             <div className="table-wrap">
@@ -1183,7 +1354,16 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mensalidades.map(m => {
+                  {mensalidades
+                    .filter(m => {
+                      const st = m.situacao || statusMensalidade(m)
+                      if (filtroFinanceiro === 'pagos') return st === 'Pago'
+                      if (filtroFinanceiro === 'pendentes') return st === 'Pendente'
+                      if (filtroFinanceiro === 'atrasados') return st.includes('Atrasado')
+                      if (filtroFinanceiro === 'parciais') return st.includes('Parcial')
+                      return true
+                    })
+                    .map(m => {
                     const st = m.situacao || statusMensalidade(m)
 
                     return (
@@ -1208,12 +1388,41 @@ function App() {
                             Number(m.valor || 0) && (
                             <button
                               className="small"
-                              onClick={() => registrarPagamento(m)}
+                              onClick={() => abrirPagamento(m)}
                             >
                               Receber
                             </button>
                           )}
                         </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <h3 className="subheading">Histórico de recebimentos</h3>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Filho</th>
+                    <th>Valor</th>
+                    <th>Forma</th>
+                    <th>Observações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagamentos.map(p => {
+                    const mens = mensalidades.find(m => m.id === p.mensalidade_id)
+                    return (
+                      <tr key={p.id}>
+                        <td>{dataBR(p.data_pagamento)}</td>
+                        <td>{mens?.nome || '—'}</td>
+                        <td>{dinheiro(p.valor)}</td>
+                        <td>{p.forma_pagamento || '—'}</td>
+                        <td>{p.observacoes || '—'}</td>
                       </tr>
                     )
                   })}
@@ -1359,6 +1568,56 @@ function App() {
               ))}
             </div>
 
+            <div className="central-gira">
+              <div className="section-heading">
+                <div>
+                  <span className="tag">CENTRAL DA GIRA</span>
+                  <h3>Organização e presença</h3>
+                </div>
+                <select
+                  className="gira-select"
+                  value={giraSelecionada}
+                  onChange={e => setGiraSelecionada(e.target.value)}
+                >
+                  <option value="">Todas as giras</option>
+                  {giras.map(g => (
+                    <option key={g.id} value={String(g.id)}>
+                      {g.titulo} - {dataBR(g.data_gira)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="gira-stats">
+                <div>
+                  <small>CONFIRMADOS</small>
+                  <strong>
+                    {presencas.filter(p =>
+                      (!giraSelecionada || String(p.gira_id) === giraSelecionada) &&
+                      p.confirmado
+                    ).length}
+                  </strong>
+                </div>
+                <div>
+                  <small>PRESENTES</small>
+                  <strong>
+                    {presencas.filter(p =>
+                      (!giraSelecionada || String(p.gira_id) === giraSelecionada) &&
+                      p.presente
+                    ).length}
+                  </strong>
+                </div>
+                <div>
+                  <small>REGISTROS</small>
+                  <strong>
+                    {presencas.filter(p =>
+                      !giraSelecionada || String(p.gira_id) === giraSelecionada
+                    ).length}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
             <h3 style={{ marginTop: 30 }}>Presenças e confirmações</h3>
             <div className="table-wrap">
               <table>
@@ -1372,7 +1631,11 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {presencas.map(p => {
+                  {presencas
+                    .filter(p =>
+                      !giraSelecionada || String(p.gira_id) === giraSelecionada
+                    )
+                    .map(p => {
                     const filho = filhos.find(f => f.id === p.filho_id)
                     const gira = giras.find(g => g.id === p.gira_id)
 
@@ -1757,6 +2020,121 @@ function App() {
             </div>
           </section>
         )}
+        {pagamentoModal && (
+          <div className="modal-backdrop" onClick={() => setPagamentoModal(null)}>
+            <section className="modal-card" onClick={e => e.stopPropagation()}>
+              <div className="section-heading">
+                <div>
+                  <span className="tag">REGISTRAR RECEBIMENTO</span>
+                  <h3>{pagamentoModal.nome || 'Filho da casa'}</h3>
+                </div>
+                <button className="ghost small" onClick={() => setPagamentoModal(null)}>
+                  Fechar
+                </button>
+              </div>
+
+              <div className="payment-summary">
+                <div>
+                  <small>Mensalidade</small>
+                  <strong>{dinheiro(pagamentoModal.valor)}</strong>
+                </div>
+                <div>
+                  <small>Já pago</small>
+                  <strong>{dinheiro(pagamentoModal.valor_pago)}</strong>
+                </div>
+                <div>
+                  <small>Saldo</small>
+                  <strong>
+                    {dinheiro(
+                      Math.max(
+                        0,
+                        Number(pagamentoModal.valor || 0) -
+                          Number(pagamentoModal.valor_pago || 0)
+                      )
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+              <form className="form-grid" onSubmit={salvarPagamento}>
+                <label>
+                  Valor recebido
+                  <input
+                    inputMode="decimal"
+                    value={formPagamento.valor}
+                    onChange={e =>
+                      setFormPagamento({
+                        ...formPagamento,
+                        valor: e.target.value
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Data do pagamento
+                  <input
+                    type="date"
+                    value={formPagamento.data_pagamento}
+                    onChange={e =>
+                      setFormPagamento({
+                        ...formPagamento,
+                        data_pagamento: e.target.value
+                      })
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Forma de pagamento
+                  <select
+                    value={formPagamento.forma_pagamento}
+                    onChange={e =>
+                      setFormPagamento({
+                        ...formPagamento,
+                        forma_pagamento: e.target.value
+                      })
+                    }
+                  >
+                    <option>Pix</option>
+                    <option>Dinheiro</option>
+                    <option>Cartão</option>
+                    <option>Transferência</option>
+                    <option>Outro</option>
+                  </select>
+                </label>
+
+                <label className="full">
+                  Observações
+                  <textarea
+                    placeholder="Opcional"
+                    value={formPagamento.observacoes}
+                    onChange={e =>
+                      setFormPagamento({
+                        ...formPagamento,
+                        observacoes: e.target.value
+                      })
+                    }
+                  />
+                </label>
+
+                <div className="actions full">
+                  <button type="submit">Confirmar pagamento</button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => setPagamentoModal(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        )}
+
       </main>
     )
   }
@@ -1859,6 +2237,14 @@ function App() {
               </strong>
             </article>
           </section>
+
+          {avisos.filter(a => a.importante).slice(0, 1).map(a => (
+            <article className="card wide important-card" key={a.id}>
+              <span className="tag">AVISO IMPORTANTE</span>
+              <h3>{a.titulo}</h3>
+              <p>{a.mensagem}</p>
+            </article>
+          ))}
 
           <article className="card wide">
             <span className="tag">O QUE LEVAR</span>
