@@ -1293,22 +1293,6 @@ function App() {
           </section>
         )}
 
-                const gira = giras.find(g => g.id === p.gira_id)
-                          return (
-                            <tr key={p.id}>
-                              <td>{gira?.titulo || `Gira #${p.gira_id}`}</td>
-                              <td>{p.confirmado ? 'Sim' : 'Não'}</td>
-                              <td>{p.presente ? 'Presente' : 'Não marcado'}</td>
-                            </tr>
-                          )
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
 
         {pagina === 'mensalidades' && (
           <section className="card wide">
