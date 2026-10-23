@@ -45,6 +45,84 @@ const statusMensalidade = (m) => {
   return 'Pendente'
 }
 
+
+const CARGOS_PADRAO = [
+  'Médium em Desenvolvimento',
+  'Médium de Trabalho',
+  'Cambone',
+  'Ogã',
+  'Curimbeiro',
+  'Ekedi',
+  'Mãe Pequena',
+  'Responsável pela Tronqueira',
+  'Responsável pelo Congá',
+  'Responsável pela Cozinha',
+  'Secretaria',
+  'Tesouraria',
+  'Organização das Giras',
+  'Responsável por Eventos',
+  'Responsável por Limpeza',
+  'Responsável por Materiais',
+  'Auxiliar'
+]
+
+const ESTUDOS_BASE = [
+  {
+    titulo: 'Material de Apoio 01',
+    descricao: 'Princípios religiosos, preparação dos filhos da casa para as giras, uniforme, saudações e pontos cantados.',
+    categoria: 'Formação na Umbanda',
+    ordem: 1
+  },
+  {
+    titulo: 'Material de Apoio 02',
+    descricao: 'Orixás, saudações, ervas, cores de vela, datas festivas e linhas de entidades.',
+    categoria: 'Orixás e Entidades',
+    ordem: 2
+  },
+  {
+    titulo: 'Material de Apoio 03',
+    descricao: 'A Umbanda e Deus, Orixás e fundamentos de culto.',
+    categoria: 'Fundamentos',
+    ordem: 3
+  },
+  {
+    titulo: 'Material de Apoio 04',
+    descricao: 'Anjo da Guarda, preces e ritualísticas importantes.',
+    categoria: 'Preces e Ritualísticas',
+    ordem: 4
+  },
+  {
+    titulo: 'Material de Apoio 05',
+    descricao: 'Formação de cambonos: funções, procedimentos, atendimento e sigilo.',
+    categoria: 'Formação de Cambonos',
+    ordem: 5
+  },
+  {
+    titulo: 'Material de Apoio 06',
+    descricao: 'O que é a Umbanda e aspectos de sua história.',
+    categoria: 'História da Umbanda',
+    ordem: 6
+  },
+  {
+    titulo: 'Material de Apoio 07',
+    descricao: 'Guias, passe, pemba, alguidar, defumação e outros elementos de trabalho.',
+    categoria: 'Elementos de Trabalho',
+    ordem: 7
+  },
+  {
+    titulo: 'Material de Apoio 08',
+    descricao: 'A importância das ervas na Umbanda, classificações e formas de utilização.',
+    categoria: 'Ervas',
+    ordem: 8
+  },
+  {
+    titulo: 'Material de Apoio 09',
+    descricao: 'Fundamento, axé e o sagrado na Umbanda.',
+    categoria: 'Fundamento e Axé',
+    ordem: 9
+  }
+]
+
 function App() {
   const [session, setSession] = useState(null)
   const [email, setEmail] = useState('')
@@ -89,6 +167,14 @@ function App() {
   })
 
   const admin = perfil?.tipo_usuario === 'administrador'
+
+  const cargosDisponiveis = Array.from(
+    new Set([
+      ...CARGOS_PADRAO,
+      ...filhos.map(f => f.cargo).filter(Boolean)
+    ])
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
 
   useEffect(() => {
     if (!supabase) return
@@ -535,19 +621,85 @@ function App() {
   async function criarMaterial(e) {
     e.preventDefault()
 
-    const { error } = await supabase.from('materiais_gira').insert({
+    const itens = String(novoMaterial.itens || novoMaterial.item || '')
+      .split('\n')
+      .map(item => item.trim())
+      .filter(Boolean)
+
+    if (!novoMaterial.gira_id) {
+      return alert('Selecione a gira.')
+    }
+
+    if (!novoMaterial.cargo) {
+      return alert('Selecione o cargo.')
+    }
+
+    if (itens.length === 0) {
+      return alert('Digite pelo menos um material.')
+    }
+
+    const registros = itens.map(item => ({
       gira_id: Number(novoMaterial.gira_id),
       cargo: novoMaterial.cargo,
-      item: novoMaterial.item,
+      item,
       obrigatorio: novoMaterial.obrigatorio !== false,
       observacoes: novoMaterial.observacoes || null
-    })
+    }))
+
+    const { error } = await supabase
+      .from('materiais_gira')
+      .insert(registros)
 
     if (error) return alert(error.message)
 
-    setNovoMaterial({})
+    // Mantém gira e cargo selecionados para facilitar novos cadastros.
+    setNovoMaterial({
+      gira_id: novoMaterial.gira_id,
+      cargo: novoMaterial.cargo,
+      obrigatorio: novoMaterial.obrigatorio !== false,
+      itens: '',
+      observacoes: ''
+    })
+
     await carregarAdmin()
-    alert('Material cadastrado.')
+    alert(
+      itens.length === 1
+        ? 'Material cadastrado.'
+        : `${itens.length} materiais cadastrados de uma vez.`
+    )
+  }
+
+  async function carregarEstudosBase() {
+    const existentes = new Set(
+      estudos.map(e => String(e.titulo || '').trim().toLowerCase())
+    )
+
+    const faltantes = ESTUDOS_BASE
+      .filter(
+        e => !existentes.has(e.titulo.trim().toLowerCase())
+      )
+      .map(e => ({
+        ...e,
+        arquivo_url: null,
+        link_externo: null,
+        somente_filhos: true,
+        publicado: true
+      }))
+
+    if (faltantes.length === 0) {
+      return alert('Os 9 Materiais de Apoio já estão cadastrados.')
+    }
+
+    const { error } = await supabase
+      .from('estudos')
+      .insert(faltantes)
+
+    if (error) return alert(error.message)
+
+    await carregarAdmin()
+    alert(
+      `${faltantes.length} material(is) de estudo carregado(s) com sucesso.`
+    )
   }
 
   async function excluirMaterial(id) {
@@ -1293,6 +1445,22 @@ function App() {
           </section>
         )}
 
+                const gira = giras.find(g => g.id === p.gira_id)
+                          return (
+                            <tr key={p.id}>
+                              <td>{gira?.titulo || `Gira #${p.gira_id}`}</td>
+                              <td>{p.confirmado ? 'Sim' : 'Não'}</td>
+                              <td>{p.presente ? 'Presente' : 'Não marcado'}</td>
+                            </tr>
+                          )
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {pagina === 'mensalidades' && (
           <section className="card wide">
@@ -1659,6 +1827,11 @@ function App() {
             <span className="tag">ORGANIZAÇÃO</span>
             <h3>Materiais das Giras</h3>
 
+            <p className="muted">
+              Escolha a gira e o cargo uma vez. Para cadastrar vários itens,
+              digite um material por linha.
+            </p>
+
             <form className="form-grid" onSubmit={criarMaterial}>
               <label>
                 Gira
@@ -1672,7 +1845,7 @@ function App() {
                   }
                   required
                 >
-                  <option value="">Selecione</option>
+                  <option value="">Selecione a gira</option>
                   {giras.map(g => (
                     <option key={g.id} value={g.id}>
                       {g.titulo} - {dataBR(g.data_gira)}
@@ -1682,9 +1855,8 @@ function App() {
               </label>
 
               <label>
-                Cargo
-                <input
-                  placeholder="Ex.: Médium em Desenvolvimento"
+                Cargo / Função
+                <select
                   value={novoMaterial.cargo || ''}
                   onChange={e =>
                     setNovoMaterial({
@@ -1693,27 +1865,39 @@ function App() {
                     })
                   }
                   required
-                />
+                >
+                  <option value="">Selecione o cargo</option>
+                  {cargosDisponiveis.map(cargo => (
+                    <option key={cargo} value={cargo}>
+                      {cargo}
+                    </option>
+                  ))}
+                </select>
               </label>
 
-              <label>
-                Material
-                <input
-                  placeholder="Ex.: Pemba branca"
-                  value={novoMaterial.item || ''}
+              <label className="full">
+                Materiais
+                <textarea
+                  rows="7"
+                  placeholder={'Digite um por linha. Ex.:\nPemba branca\nToalha\nGarrafinha de água\nIsqueiro\nCaderno\nCaneta'}
+                  value={novoMaterial.itens || ''}
                   onChange={e =>
                     setNovoMaterial({
                       ...novoMaterial,
-                      item: e.target.value
+                      itens: e.target.value
                     })
                   }
                   required
                 />
+                <small>
+                  Você pode cadastrar todos os materiais desse cargo de uma só vez.
+                </small>
               </label>
 
               <label className="full">
-                Observações
+                Observações para este grupo
                 <textarea
+                  placeholder="Ex.: Levar o kit completo e chegar com antecedência."
                   value={novoMaterial.observacoes || ''}
                   onChange={e =>
                     setNovoMaterial({
@@ -1724,33 +1908,63 @@ function App() {
                 />
               </label>
 
-              <button type="submit">Adicionar material</button>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={novoMaterial.obrigatorio !== false}
+                  onChange={e =>
+                    setNovoMaterial({
+                      ...novoMaterial,
+                      obrigatorio: e.target.checked
+                    })
+                  }
+                />
+                Material obrigatório
+              </label>
+
+              <button type="submit">Adicionar materiais</button>
             </form>
 
             <div className="list">
-              {materiais.map(m => (
-                <div className="list-item" key={m.id}>
-                  <div>
-                    <strong>✓ {m.item}</strong>
-                    <p>{m.cargo}</p>
-                  </div>
+              {materiais.length === 0 && (
+                <p>Nenhum material cadastrado.</p>
+              )}
 
-                  <div className="actions">
-                    <button
-                      className="small ghost"
-                      onClick={() => editarMaterial(m)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      className="danger small"
-                      onClick={() => excluirMaterial(m.id)}
-                    >
-                      Excluir
-                    </button>
+              {materiais.map(m => {
+                const gira = giras.find(g => Number(g.id) === Number(m.gira_id))
+
+                return (
+                  <div className="list-item" key={m.id}>
+                    <div>
+                      <strong>
+                        {m.obrigatorio === false ? '○' : '✓'} {m.item}
+                      </strong>
+                      <p>
+                        {gira
+                          ? `${gira.titulo} • ${dataBR(gira.data_gira)}`
+                          : 'Gira'}{' '}
+                        • {m.cargo}
+                      </p>
+                      {m.observacoes && <small>{m.observacoes}</small>}
+                    </div>
+
+                    <div className="actions">
+                      <button
+                        className="small ghost"
+                        onClick={() => editarMaterial(m)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="danger small"
+                        onClick={() => excluirMaterial(m.id)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}
@@ -1856,7 +2070,23 @@ function App() {
         {pagina === 'estudos' && (
           <section className="card wide">
             <span className="tag">CONHECIMENTO</span>
-            <h3>Estudos e Apostilas</h3>
+            <h3>Biblioteca de Formação</h3>
+
+            <div className="list-item" style={{ marginBottom: 18 }}>
+              <div>
+                <strong>📚 Formação interna do Templo</strong>
+                <p>
+                  Carregue de uma vez os 9 Materiais de Apoio que já faziam
+                  parte do sistema anterior. O botão não duplica materiais
+                  que já estejam cadastrados.
+                </p>
+              </div>
+              <div className="actions">
+                <button type="button" onClick={carregarEstudosBase}>
+                  Carregar 9 estudos
+                </button>
+              </div>
+            </div>
 
             <form className="form-grid" onSubmit={criarEstudo}>
               <label>
@@ -1876,6 +2106,7 @@ function App() {
               <label>
                 Categoria
                 <input
+                  placeholder="Ex.: Fundamentos"
                   value={novoEstudo.categoria || ''}
                   onChange={e =>
                     setNovoEstudo({
@@ -1900,9 +2131,10 @@ function App() {
               </label>
 
               <label>
-                Link do arquivo
+                Link da apostila / arquivo
                 <input
                   type="url"
+                  placeholder="https://..."
                   value={novoEstudo.arquivo_url || ''}
                   onChange={e =>
                     setNovoEstudo({
@@ -1917,6 +2149,7 @@ function App() {
                 Link externo
                 <input
                   type="url"
+                  placeholder="https://..."
                   value={novoEstudo.link_externo || ''}
                   onChange={e =>
                     setNovoEstudo({
@@ -1927,34 +2160,69 @@ function App() {
                 />
               </label>
 
-              <button type="submit">Publicar estudo</button>
+              <button type="submit">Publicar novo estudo</button>
             </form>
 
-            <div className="list">
-              {estudos.map(e => (
-                <div className="list-item" key={e.id}>
-                  <div>
-                    <strong>📚 {e.titulo}</strong>
-                    <p>{e.descricao}</p>
-                    <small>{e.categoria}</small>
-                  </div>
+            <h3 style={{ marginTop: 30 }}>Conteúdos publicados</h3>
 
-                  <div className="actions">
-                    <button
-                      className="small ghost"
-                      onClick={() => editarEstudo(e)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      className="danger small"
-                      onClick={() => excluirEstudo(e.id)}
-                    >
-                      Excluir
-                    </button>
+            <div className="list">
+              {estudos.length === 0 && (
+                <p>
+                  Nenhum conteúdo publicado. Clique em “Carregar 9 estudos”
+                  para trazer a formação inicial.
+                </p>
+              )}
+
+              {[...estudos]
+                .sort((a, b) =>
+                  Number(a.ordem || 0) - Number(b.ordem || 0)
+                )
+                .map(e => (
+                  <div className="list-item" key={e.id}>
+                    <div>
+                      <strong>📚 {e.titulo}</strong>
+                      <p>{e.descricao}</p>
+                      <small>{e.categoria || 'Geral'}</small>
+                    </div>
+
+                    <div className="actions">
+                      {e.arquivo_url && (
+                        <a
+                          className="button-link"
+                          href={e.arquivo_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir apostila
+                        </a>
+                      )}
+
+                      {e.link_externo && (
+                        <a
+                          className="button-link"
+                          href={e.link_externo}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Acessar conteúdo
+                        </a>
+                      )}
+
+                      <button
+                        className="small ghost"
+                        onClick={() => editarEstudo(e)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="danger small"
+                        onClick={() => excluirEstudo(e.id)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </section>
         )}
