@@ -1673,25 +1673,6 @@ function App() {
           </section>
         )}
 
-
-        {pagina === 'dashboard' && giras[0] && (
-          <section className="card wide">
-            <span className="tag">👥 MINHA FUNÇÃO NA PRÓXIMA GIRA</span>
-            {(() => {
-              const funcao = funcoesGira.find(x => String(x.gira_id) === String(giras[0].id))
-              return funcao ? (
-                <>
-                  <h3>{funcao.funcao}</h3>
-                  <p>{giras[0].titulo} — {dataBR(giras[0].data_gira)}</p>
-                  {funcao.observacoes && <p>{funcao.observacoes}</p>}
-                </>
-              ) : (
-                <p>Nenhuma função específica atribuída para esta gira.</p>
-              )
-            })()}
-          </section>
-        )}
-
         {pagina === 'mensalidades' && (
           <section className="card wide">
             <div className="section-heading">
@@ -2768,6 +2749,32 @@ function App() {
                   </p>
 
                   <p>{proximaGira.orientacoes}</p>
+
+                  {(() => {
+                    const minhaFuncao = funcoesGira.find(
+                      x => String(x.gira_id) === String(proximaGira.id)
+                    )
+
+                    return minhaFuncao ? (
+                      <div
+                        style={{
+                          margin: '18px 0',
+                          padding: '16px',
+                          border: '1px solid rgba(238, 190, 75, .35)',
+                          borderRadius: 14,
+                          background: 'rgba(238, 190, 75, .06)'
+                        }}
+                      >
+                        <span className="tag">👥 SUA FUNÇÃO NESTA GIRA</span>
+                        <h3 style={{ marginTop: 8, marginBottom: 6 }}>
+                          {minhaFuncao.funcao}
+                        </h3>
+                        {minhaFuncao.observacoes && (
+                          <p style={{ margin: 0 }}>{minhaFuncao.observacoes}</p>
+                        )}
+                      </div>
+                    ) : null
+                  })()}
 
                   <button
                     className="small"
