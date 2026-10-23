@@ -67,6 +67,7 @@ function App() {
   const [presencas, setPresencas] = useState([])
 
   const [editFilho, setEditFilho] = useState(null)
+  const [fichaFilho, setFichaFilho] = useState(null)
   const [novaGira, setNovaGira] = useState({})
   const [novoMaterial, setNovoMaterial] = useState({})
   const [novoAviso, setNovoAviso] = useState({})
@@ -366,6 +367,110 @@ function App() {
     }
 
     alert('Pagamento registrado com sucesso.')
+    await carregarAdmin()
+  }
+
+  async function gerarMensalidadesAgora() {
+    const { data, error } = await supabase.rpc('gerar_mensalidades_mes', {
+      p_competencia: `${hojeISO().slice(0, 7)}-01`
+    })
+
+    if (error) return alert(error.message)
+
+    alert(
+      Number(data || 0) > 0
+        ? `${data} mensalidade(s) gerada(s) com sucesso.`
+        : 'As mensalidades deste mês já estão em dia.'
+    )
+
+    await carregarAdmin()
+  }
+
+  async function editarGira(g) {
+    const titulo = window.prompt('Título da gira:', g.titulo || '')
+    if (titulo === null) return
+
+    const orientacoes = window.prompt(
+      'Orientações da gira:',
+      g.orientacoes || ''
+    )
+    if (orientacoes === null) return
+
+    const { error } = await supabase
+      .from('giras')
+      .update({ titulo, orientacoes })
+      .eq('id', g.id)
+
+    if (error) return alert(error.message)
+
+    await carregarAdmin()
+  }
+
+  async function editarMaterial(m) {
+    const item = window.prompt('Material:', m.item || '')
+    if (item === null) return
+
+    const observacoes = window.prompt(
+      'Observações:',
+      m.observacoes || ''
+    )
+    if (observacoes === null) return
+
+    const { error } = await supabase
+      .from('materiais_gira')
+      .update({ item, observacoes })
+      .eq('id', m.id)
+
+    if (error) return alert(error.message)
+
+    await carregarAdmin()
+  }
+
+  async function editarAviso(a) {
+    const titulo = window.prompt('Título do aviso:', a.titulo || '')
+    if (titulo === null) return
+
+    const mensagem = window.prompt('Mensagem:', a.mensagem || '')
+    if (mensagem === null) return
+
+    const { error } = await supabase
+      .from('avisos')
+      .update({ titulo, mensagem })
+      .eq('id', a.id)
+
+    if (error) return alert(error.message)
+
+    await carregarAdmin()
+  }
+
+  async function editarEstudo(estudo) {
+    const titulo = window.prompt('Título:', estudo.titulo || '')
+    if (titulo === null) return
+
+    const descricao = window.prompt(
+      'Descrição:',
+      estudo.descricao || ''
+    )
+    if (descricao === null) return
+
+    const { error } = await supabase
+      .from('estudos')
+      .update({ titulo, descricao })
+      .eq('id', estudo.id)
+
+    if (error) return alert(error.message)
+
+    await carregarAdmin()
+  }
+
+  async function marcarPresencaAdmin(p, presente) {
+    const { error } = await supabase
+      .from('presencas_gira')
+      .update({ presente })
+      .eq('id', p.id)
+
+    if (error) return alert(error.message)
+
     await carregarAdmin()
   }
 
@@ -717,6 +822,9 @@ function App() {
               <h3>Painel de Administração</h3>
 
               <div className="admin-shortcuts">
+                <button onClick={gerarMensalidadesAgora}>
+                  ⚡ Gerar mensalidades do mês
+                </button>
                 <button onClick={() => setPagina('filhos')}>
                   👥 Gerenciar filhos
                 </button>
@@ -769,12 +877,26 @@ function App() {
                       <td>{dinheiro(f.valor_mensalidade)}</td>
                       <td>{f.ativo ? 'Ativo' : 'Inativo'}</td>
                       <td>
-                        <button
-                          className="small"
-                          onClick={() => setEditFilho({ ...f })}
-                        >
-                          Editar
-                        </button>
+                        <div className="actions">
+                          <button
+                            className="small"
+                            onClick={() => {
+                              setEditFilho(null)
+                              setFichaFilho({ ...f })
+                            }}
+                          >
+                            Ver ficha
+                          </button>
+                          <button
+                            className="small ghost"
+                            onClick={() => {
+                              setFichaFilho(null)
+                              setEditFilho({ ...f })
+                            }}
+                          >
+                            Editar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -810,6 +932,20 @@ function App() {
                       setEditFilho({
                         ...editFilho,
                         telefone: e.target.value
+                      })
+                    }
+                  />
+                </label>
+
+                <label>
+                  Data de nascimento
+                  <input
+                    type="date"
+                    value={editFilho.data_nascimento || ''}
+                    onChange={e =>
+                      setEditFilho({
+                        ...editFilho,
+                        data_nascimento: e.target.value
                       })
                     }
                   />
@@ -912,13 +1048,126 @@ function App() {
                 </div>
               </form>
             )}
+
+            {fichaFilho && (
+              <div className="profile-sheet">
+                <div className="section-heading">
+                  <div>
+                    <span className="tag">FICHA COMPLETA</span>
+                    <h3>{fichaFilho.nome}</h3>
+                    <p>{fichaFilho.cargo || 'Sem cargo informado'}</p>
+                  </div>
+                  <button
+                    className="ghost small"
+                    onClick={() => setFichaFilho(null)}
+                  >
+                    Fechar ficha
+                  </button>
+                </div>
+
+                <div className="profile-grid">
+                  <div>
+                    <small>Telefone</small>
+                    <strong>{fichaFilho.telefone || '—'}</strong>
+                  </div>
+                  <div>
+                    <small>Nascimento</small>
+                    <strong>{dataBR(fichaFilho.data_nascimento)}</strong>
+                  </div>
+                  <div>
+                    <small>Entrada na casa</small>
+                    <strong>{dataBR(fichaFilho.data_entrada)}</strong>
+                  </div>
+                  <div>
+                    <small>Mensalidade</small>
+                    <strong>{dinheiro(fichaFilho.valor_mensalidade)}</strong>
+                  </div>
+                  <div>
+                    <small>Vencimento</small>
+                    <strong>Dia {fichaFilho.dia_vencimento || '—'}</strong>
+                  </div>
+                  <div>
+                    <small>Status</small>
+                    <strong>{fichaFilho.ativo ? 'Ativo' : 'Inativo'}</strong>
+                  </div>
+                </div>
+
+                {fichaFilho.observacoes && (
+                  <p className="answer">
+                    <b>Observações:</b> {fichaFilho.observacoes}
+                  </p>
+                )}
+
+                <h3>Histórico financeiro</h3>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Competência</th>
+                        <th>Vencimento</th>
+                        <th>Valor</th>
+                        <th>Pago</th>
+                        <th>Situação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mensalidades
+                        .filter(m => m.filho_id === fichaFilho.id)
+                        .map(m => (
+                          <tr key={m.id}>
+                            <td>{mesBR(m.competencia)}</td>
+                            <td>{dataBR(m.vencimento)}</td>
+                            <td>{dinheiro(m.valor)}</td>
+                            <td>{dinheiro(m.valor_pago)}</td>
+                            <td>{m.situacao || statusMensalidade(m)}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3>Histórico de presença</h3>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Gira</th>
+                        <th>Confirmou</th>
+                        <th>Presença</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {presencas
+                        .filter(p => p.filho_id === fichaFilho.id)
+                        .map(p => {
+                          const gira = giras.find(g => g.id === p.gira_id)
+                          return (
+                            <tr key={p.id}>
+                              <td>{gira?.titulo || `Gira #${p.gira_id}`}</td>
+                              <td>{p.confirmado ? 'Sim' : 'Não'}</td>
+                              <td>{p.presente ? 'Presente' : 'Não marcado'}</td>
+                            </tr>
+                          )
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
         {pagina === 'mensalidades' && (
           <section className="card wide">
-            <span className="tag">FINANCEIRO</span>
-            <h3>Mensalidades e Pagamentos</h3>
+            <div className="section-heading">
+              <div>
+                <span className="tag">FINANCEIRO</span>
+                <h3>Mensalidades e Pagamentos</h3>
+              </div>
+              <button onClick={gerarMensalidadesAgora}>
+                Gerar mensalidades do mês
+              </button>
+            </div>
 
             <div className="table-wrap">
               <table>
@@ -1092,14 +1341,68 @@ function App() {
                     <small>{g.orientacoes}</small>
                   </div>
 
-                  <button
-                    className="danger small"
-                    onClick={() => excluirGira(g.id)}
-                  >
-                    Excluir
-                  </button>
+                  <div className="actions">
+                    <button
+                      className="small ghost"
+                      onClick={() => editarGira(g)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="danger small"
+                      onClick={() => excluirGira(g.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            <h3 style={{ marginTop: 30 }}>Presenças e confirmações</h3>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Filho</th>
+                    <th>Gira</th>
+                    <th>Confirmou</th>
+                    <th>Presença</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {presencas.map(p => {
+                    const filho = filhos.find(f => f.id === p.filho_id)
+                    const gira = giras.find(g => g.id === p.gira_id)
+
+                    return (
+                      <tr key={p.id}>
+                        <td>{filho?.nome || '—'}</td>
+                        <td>{gira?.titulo || `Gira #${p.gira_id}`}</td>
+                        <td>{p.confirmado ? 'Sim' : 'Não'}</td>
+                        <td>{p.presente ? 'Presente' : 'Não marcado'}</td>
+                        <td>
+                          <div className="actions">
+                            <button
+                              className="small"
+                              onClick={() => marcarPresencaAdmin(p, true)}
+                            >
+                              Presente
+                            </button>
+                            <button
+                              className="small ghost"
+                              onClick={() => marcarPresencaAdmin(p, false)}
+                            >
+                              Faltou
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
@@ -1185,12 +1488,20 @@ function App() {
                     <p>{m.cargo}</p>
                   </div>
 
-                  <button
-                    className="danger small"
-                    onClick={() => excluirMaterial(m.id)}
-                  >
-                    Excluir
-                  </button>
+                  <div className="actions">
+                    <button
+                      className="small ghost"
+                      onClick={() => editarMaterial(m)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="danger small"
+                      onClick={() => excluirMaterial(m.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1275,12 +1586,20 @@ function App() {
                     <p>{a.mensagem}</p>
                   </div>
 
-                  <button
-                    className="danger small"
-                    onClick={() => excluirAviso(a.id)}
-                  >
-                    Excluir
-                  </button>
+                  <div className="actions">
+                    <button
+                      className="small ghost"
+                      onClick={() => editarAviso(a)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="danger small"
+                      onClick={() => excluirAviso(a.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1373,12 +1692,20 @@ function App() {
                     <small>{e.categoria}</small>
                   </div>
 
-                  <button
-                    className="danger small"
-                    onClick={() => excluirEstudo(e.id)}
-                  >
-                    Excluir
-                  </button>
+                  <div className="actions">
+                    <button
+                      className="small ghost"
+                      onClick={() => editarEstudo(e)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="danger small"
+                      onClick={() => excluirEstudo(e.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
