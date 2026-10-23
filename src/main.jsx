@@ -192,6 +192,8 @@ function App() {
   const [estudos, setEstudos] = useState([])
   const [sugestoes, setSugestoes] = useState([])
   const [presencas, setPresencas] = useState([])
+  const [funcoesGira, setFuncoesGira] = useState([])
+  const [novaFuncaoGira, setNovaFuncaoGira] = useState({ gira_id: '', filho_id: '', funcao: '' })
 
   const [editFilho, setEditFilho] = useState(null)
   const [fichaFilho, setFichaFilho] = useState(null)
@@ -312,7 +314,8 @@ function App() {
       ra,
       re,
       rs,
-      rpre
+      rpre,
+      rfun
     ] = await Promise.all([
       supabase.rpc('admin_listar_filhos'),
       supabase.rpc('admin_listar_giras'),
@@ -322,10 +325,11 @@ function App() {
       supabase.rpc('admin_listar_avisos'),
       supabase.rpc('admin_listar_estudos'),
       supabase.rpc('admin_listar_sugestoes'),
-      supabase.rpc('admin_listar_presencas')
+      supabase.rpc('admin_listar_presencas'),
+      supabase.rpc('admin_listar_funcoes_gira')
     ])
 
-    const respostas = [rf, rg, rm, rmen, rp, ra, re, rs, rpre]
+    const respostas = [rf, rg, rm, rmen, rp, ra, re, rs, rpre, rfun]
     const falha = respostas.find(x => x.error)
 
     if (falha?.error) throw falha.error
@@ -339,6 +343,7 @@ function App() {
     setEstudos(re.data || [])
     setSugestoes(rs.data || [])
     setPresencas(rpre.data || [])
+    setFuncoesGira(rfun.data || [])
   }
 
   async function carregarFilho(p) {
@@ -385,6 +390,14 @@ function App() {
     setEstudos(re.data || [])
     setSugestoes(rs.data || [])
 
+    const { data: funcoesFilho } = await supabase
+      .from('funcoes_gira')
+      .select('*')
+      .eq('filho_id', session.user.id)
+      .order('gira_id')
+
+    setFuncoesGira(funcoesFilho || [])
+
     const primeiraGira = (rg.data || [])[0]
 
     if (primeiraGira && p?.cargo) {
@@ -419,6 +432,81 @@ function App() {
       recebido: mes.reduce((s, m) => s + Number(m.valor_pago || 0), 0)
     }
   }, [filhos, mensalidades])
+
+  const aniversariantesMes = useMemo(() => {
+    const mesAtual = Number(hojeISO().slice(5, 7))
+    return filhos
+      .filter(f => f.ativo && f.data_nascimento)
+      .filter(f => Number(String(f.data_nascimento).slice(5, 7)) === mesAtual)
+      .sort((a, b) =>
+        Number(String(a.data_nascimento).slice(8, 10)) -
+        Number(String(b.data_nascimento).slice(8, 10))
+      )
+  }, [filhos])
+
+  const pendenciasConfirmacao = useMemo(() => {
+    const proxima = giras[0]
+    if (!proxima) return []
+    return filhos
+      .filter(f => f.ativo)
+      .filter(f => !presencas.some(p =>
+        String(p.gira_id) === String(proxima.id) &&
+        p.filho_id === f.id &&
+        p.confirmado
+      ))
+  }, [filhos, giras, presencas])
+
+  function frequenciaFilho(filhoId) {
+    const registros = presencas.filter(p => p.filho_id === filhoId)
+    const marcados = registros.filter(p => p.presente === true || p.presente === false)
+    const presentes = marcados.filter(p => p.presente === true).length
+    const faltas = marcados.filter(p => p.presente === false).length
+    const percentual = marcados.length
+      ? Math.round((presentes / marcados.length) * 100)
+      : 0
+    return { presentes, faltas, percentual, total: marcados.length }
+  }
+
+  function whatsappHref(telefone, mensagem = '') {
+    let numero = String(telefone || '').replace(/\D/g, '')
+    if (!numero) return '#'
+    if (!numero.startsWith('55')) numero = `55${numero}`
+    return `https://wa.me/${numero}${mensagem ? `?text=${encodeURIComponent(mensagem)}` : ''}`
+  }
+
+  async function salvarFuncaoGira(e) {
+    e.preventDefault()
+    if (!novaFuncaoGira.gira_id || !novaFuncaoGira.filho_id || !novaFuncaoGira.funcao) {
+      return alert('Selecione a gira, o filho e informe a função.')
+    }
+
+    const { error } = await supabase
+      .from('funcoes_gira')
+      .upsert({
+        gira_id: Number(novaFuncaoGira.gira_id),
+        filho_id: novaFuncaoGira.filho_id,
+        funcao: novaFuncaoGira.funcao,
+        observacoes: novaFuncaoGira.observacoes || null
+      }, { onConflict: 'gira_id,filho_id' })
+
+    if (error) return alert(error.message)
+
+    setNovaFuncaoGira({
+      gira_id: novaFuncaoGira.gira_id,
+      filho_id: '',
+      funcao: '',
+      observacoes: ''
+    })
+    await carregarAdmin()
+    alert('Função da gira salva.')
+  }
+
+  async function excluirFuncaoGira(id) {
+    if (!window.confirm('Excluir esta função da gira?')) return
+    const { error } = await supabase.from('funcoes_gira').delete().eq('id', id)
+    if (error) return alert(error.message)
+    await carregarAdmin()
+  }
 
   async function salvarFilho(e) {
     e.preventDefault()
@@ -1144,6 +1232,64 @@ function App() {
               </div>
             </section>
 
+            <section className="dashboard-detail-grid">
+              <article className="card">
+                <span className="tag">🎂 ANIVERSARIANTES DO MÊS</span>
+                <h3>Datas especiais</h3>
+                <div className="mini-list">
+                  {aniversariantesMes.length ? aniversariantesMes.map(f => (
+                    <div className="mini-row" key={f.id}>
+                      <div>
+                        <strong>{f.nome}</strong>
+                        <small>Dia {String(f.data_nascimento).slice(8, 10)}</small>
+                      </div>
+                      {f.telefone && (
+                        <a
+                          className="button-link small"
+                          href={whatsappHref(f.telefone, `Feliz aniversário, ${f.nome}! Que seu novo ciclo seja de muito axé, saúde e caminhos abertos. 🎉`)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Parabenizar
+                        </a>
+                      )}
+                    </div>
+                  )) : <p>Nenhum aniversariante neste mês.</p>}
+                </div>
+              </article>
+
+              <article className="card">
+                <span className="tag">🔔 CENTRAL DE PENDÊNCIAS</span>
+                <h3>Próxima gira</h3>
+                {giras[0] ? (
+                  <>
+                    <p><b>{giras[0].titulo}</b> — {dataBR(giras[0].data_gira)}</p>
+                    <p>{pendenciasConfirmacao.length} filho(s) ainda sem confirmação.</p>
+                    <div className="mini-list">
+                      {pendenciasConfirmacao.slice(0, 5).map(f => (
+                        <div className="mini-row" key={f.id}>
+                          <strong>{f.nome}</strong>
+                          {f.telefone && (
+                            <a
+                              className="button-link small"
+                              href={whatsappHref(
+                                f.telefone,
+                                `Olá, ${f.nome}! Lembrando da ${giras[0].titulo} no dia ${dataBR(giras[0].data_gira)}. Por favor, confirme sua presença na Área do Filho.`
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Lembrar
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : <p>Nenhuma próxima gira cadastrada.</p>}
+              </article>
+            </section>
+
             <section className="card wide">
               <span className="tag">GESTÃO DO TEMPLO</span>
               <h3>Ações rápidas</h3>
@@ -1222,6 +1368,19 @@ function App() {
                           >
                             Editar
                           </button>
+                          {f.telefone && (
+                            <a
+                              className="button-link small ghost"
+                              href={whatsappHref(
+                                f.telefone,
+                                `Olá, ${f.nome}! Passando um aviso do Templo T.U Caboclo Tupinambá Ode Leke.`
+                              )}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              WhatsApp
+                            </a>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1387,7 +1546,7 @@ function App() {
                     {fichaFilho.telefone && (
                       <a
                         className="button-link small"
-                        href={`https://wa.me/55${String(fichaFilho.telefone).replace(/\D/g, '')}`}
+                        href={whatsappHref(fichaFilho.telefone)}
                         target="_blank"
                         rel="noreferrer"
                       >
@@ -1430,11 +1589,30 @@ function App() {
                   </div>
                 </div>
 
-                {fichaFilho.observacoes && (
-                  <p className="answer">
-                    <b>Observações:</b> {fichaFilho.observacoes}
-                  </p>
-                )}
+                {(() => {
+                  const freq = frequenciaFilho(fichaFilho.id)
+                  return (
+                    <div className="gira-stats" style={{ marginTop: 18, marginBottom: 22 }}>
+                      <div>
+                        <small>PRESENÇAS</small>
+                        <strong>{freq.presentes}</strong>
+                      </div>
+                      <div>
+                        <small>FALTAS</small>
+                        <strong>{freq.faltas}</strong>
+                      </div>
+                      <div>
+                        <small>FREQUÊNCIA</small>
+                        <strong>{freq.percentual}%</strong>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                <p className="answer">
+                  <b>🔒 Observação interna:</b>{' '}
+                  {fichaFilho.observacoes || 'Nenhuma observação interna cadastrada.'}
+                </p>
 
                 <h3>Histórico financeiro</h3>
                 <div className="table-wrap">
@@ -1495,6 +1673,24 @@ function App() {
           </section>
         )}
 
+
+        {pagina === 'dashboard' && giras[0] && (
+          <section className="card wide">
+            <span className="tag">👥 MINHA FUNÇÃO NA PRÓXIMA GIRA</span>
+            {(() => {
+              const funcao = funcoesGira.find(x => String(x.gira_id) === String(giras[0].id))
+              return funcao ? (
+                <>
+                  <h3>{funcao.funcao}</h3>
+                  <p>{giras[0].titulo} — {dataBR(giras[0].data_gira)}</p>
+                  {funcao.observacoes && <p>{funcao.observacoes}</p>}
+                </>
+              ) : (
+                <p>Nenhuma função específica atribuída para esta gira.</p>
+              )
+            })()}
+          </section>
+        )}
 
         {pagina === 'mensalidades' && (
           <section className="card wide">
@@ -1801,6 +1997,82 @@ function App() {
                     ).length}
                   </strong>
                 </div>
+              </div>
+            </div>
+
+            <div className="card" style={{ marginTop: 24 }}>
+              <span className="tag">👥 FUNÇÕES DA GIRA</span>
+              <h3>Escala e responsabilidades</h3>
+              <form className="form-grid" onSubmit={salvarFuncaoGira}>
+                <label>
+                  Gira
+                  <select
+                    value={novaFuncaoGira.gira_id || ''}
+                    onChange={e => setNovaFuncaoGira({ ...novaFuncaoGira, gira_id: e.target.value })}
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    {giras.map(g => (
+                      <option key={g.id} value={g.id}>{g.titulo} - {dataBR(g.data_gira)}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Filho
+                  <select
+                    value={novaFuncaoGira.filho_id || ''}
+                    onChange={e => setNovaFuncaoGira({ ...novaFuncaoGira, filho_id: e.target.value })}
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    {filhos.filter(f => f.ativo).map(f => (
+                      <option key={f.id} value={f.id}>{f.nome}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Função
+                  <input
+                    placeholder="Ex.: Cambono, Tronqueira, Cozinha..."
+                    value={novaFuncaoGira.funcao || ''}
+                    onChange={e => setNovaFuncaoGira({ ...novaFuncaoGira, funcao: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Observação
+                  <input
+                    placeholder="Opcional"
+                    value={novaFuncaoGira.observacoes || ''}
+                    onChange={e => setNovaFuncaoGira({ ...novaFuncaoGira, observacoes: e.target.value })}
+                  />
+                </label>
+
+                <button type="submit">Salvar função</button>
+              </form>
+
+              <div className="list">
+                {funcoesGira
+                  .filter(x => !giraSelecionada || String(x.gira_id) === giraSelecionada)
+                  .map(x => {
+                    const f = filhos.find(y => y.id === x.filho_id)
+                    const g = giras.find(y => String(y.id) === String(x.gira_id))
+                    return (
+                      <div className="list-item" key={x.id}>
+                        <div>
+                          <strong>{f?.nome || x.nome || 'Filho da casa'} — {x.funcao}</strong>
+                          <p>{g?.titulo || x.gira_titulo || `Gira #${x.gira_id}`}</p>
+                          {x.observacoes && <small>{x.observacoes}</small>}
+                        </div>
+                        <button className="danger small" onClick={() => excluirFuncaoGira(x.id)}>
+                          Excluir
+                        </button>
+                      </div>
+                    )
+                  })}
               </div>
             </div>
 
