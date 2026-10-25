@@ -1407,9 +1407,28 @@ function App() {
             <div className="public-feature-grid">
               <article className="card">
                 <h2>Atendimento</h2>
-                <p>
-                  Os canais oficiais de WhatsApp e redes sociais podem ser publicados
-                  aqui, mantendo os dados internos dos filhos separados da área pública.
+                <p>Entre em contato pelos canais oficiais do Templo.</p>
+                <div className="actions" style={{ marginTop: 18 }}>
+                  <a
+                    className="button"
+                    href="https://wa.me/5519988760784"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    💬 WhatsApp
+                  </a>
+                  <a
+                    className="button ghost"
+                    href="https://www.instagram.com/t.ucaboclotupinambaodeleke/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    📸 Instagram
+                  </a>
+                </div>
+                <p style={{ marginTop: 16 }}>
+                  WhatsApp: (19) 98876-0784<br />
+                  Instagram: @t.ucaboclotupinambaodeleke
                 </p>
               </article>
               <article className="card">
