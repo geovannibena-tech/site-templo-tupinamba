@@ -483,8 +483,24 @@ function App() {
       )
   }, [filhos])
 
+  const girasFuturas = useMemo(() => {
+    const hoje = hojeISO()
+    return [...giras]
+      .filter(g => String(g.data_gira || '') >= hoje)
+      .sort((a, b) => String(a.data_gira || '').localeCompare(String(b.data_gira || '')))
+  }, [giras])
+
+  const girasHistorico = useMemo(() => {
+    const hoje = hojeISO()
+    return [...giras]
+      .filter(g => String(g.data_gira || '') < hoje)
+      .sort((a, b) => String(b.data_gira || '').localeCompare(String(a.data_gira || '')))
+  }, [giras])
+
+  const proximaGiraSistema = girasFuturas[0] || null
+
   const pendenciasConfirmacao = useMemo(() => {
-    const proxima = giras[0]
+    const proxima = proximaGiraSistema
     if (!proxima) return []
     return filhos
       .filter(f => f.ativo)
@@ -493,7 +509,7 @@ function App() {
         p.filho_id === f.id &&
         p.confirmado
       ))
-  }, [filhos, giras, presencas])
+  }, [filhos, proximaGiraSistema, presencas])
 
   const resumoFrequencia = useMemo(() => {
     const marcados = presencas.filter(p => p.presente === true || p.presente === false)
@@ -1445,7 +1461,7 @@ function App() {
             <section className="dashboard-detail-grid">
               <article className="card">
                 <span className="tag">PRÓXIMA GIRA</span>
-                {giras[0] ? (
+                {proximaGiraSistema ? (
                   <>
                     <h3>{giras[0].titulo}</h3>
                     <p className="big">
@@ -3008,7 +3024,7 @@ function App() {
     )
   }
 
-  const proximaGira = giras[0]
+  const proximaGira = proximaGiraSistema
   const mensalidadeAtual = mensalidades[0]
   const statusAtual = statusMensalidade(mensalidadeAtual)
 
