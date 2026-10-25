@@ -1193,6 +1193,32 @@ function App() {
 
     return (
       <main className="app public-app">
+        <a
+          href="https://wa.me/5519988760784?text=Ol%C3%A1%21%20Vim%20pelo%20site%20do%20T.U%20Caboclo%20Tupinamb%C3%A1%20Ode%20Leke%20e%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es."
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Falar com o Templo pelo WhatsApp"
+          title="Fale conosco pelo WhatsApp"
+          style={{
+            position: 'fixed',
+            right: 22,
+            bottom: 22,
+            width: 58,
+            height: 58,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#25D366',
+            color: '#fff',
+            fontSize: 30,
+            textDecoration: 'none',
+            boxShadow: '0 8px 24px rgba(0,0,0,.32)',
+            zIndex: 9999
+          }}
+        >
+          ☎
+        </a>
         <header className="public-header">
           <button className="brand-button" onClick={() => setPublicSecao('inicio')}>
             <span className="public-mark">TU</span>
