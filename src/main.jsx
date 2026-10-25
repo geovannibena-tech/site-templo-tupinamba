@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { supabase } from './supabase'
 import './style.css'
@@ -209,6 +209,7 @@ function App() {
     descricao: ''
   })
   const [enviandoArquivo, setEnviandoArquivo] = useState(false)
+  const arquivoInputRef = useRef(null)
   const [novaFuncaoGira, setNovaFuncaoGira] = useState({ gira_id: '', filho_id: '', funcao: '' })
 
   const [editFilho, setEditFilho] = useState(null)
@@ -441,6 +442,7 @@ function App() {
         mensalidade_id: '',
         descricao: ''
       })
+      if (arquivoInputRef.current) arquivoInputRef.current.value = ''
       setMsg('Arquivo enviado para a nuvem privada.')
       await carregarAdmin()
     } catch (e) {
@@ -1174,13 +1176,14 @@ function App() {
           gira_id: gira.id,
           filho_id: session.user.id,
           confirmado: true,
-          presente: false
+          presente: null
         })
 
       if (error) return alert(error.message)
     }
 
-    alert('Presença confirmada.')
+    await carregarFilho(perfil)
+    alert('Presença confirmada. A presença real será registrada pelo administrador após a gira.')
   }
 
   if (!session) {
@@ -2854,6 +2857,7 @@ function App() {
               <label className="full">
                 Arquivo
                 <input
+                  ref={arquivoInputRef}
                   type="file"
                   onChange={e => setUploadNuvem({
                     ...uploadNuvem,
