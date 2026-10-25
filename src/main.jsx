@@ -172,6 +172,13 @@ function EstudoLeitor({ estudo, onClose }) {
   )
 }
 
+function moeda(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  })
+}
+
 function App() {
   const [session, setSession] = useState(null)
   const [email, setEmail] = useState('')
