@@ -254,6 +254,37 @@ function App() {
     carregarTudo()
   }, [session])
 
+  useEffect(() => {
+    if (!supabase || session) return
+
+    async function carregarSitePublico() {
+      const hoje = hojeISO()
+
+      const [rg, ra] = await Promise.all([
+        supabase
+          .from('giras')
+          .select('*')
+          .eq('aberta_publico', true)
+          .gte('data_gira', hoje)
+          .order('data_gira', { ascending: true })
+          .limit(12),
+
+        supabase
+          .from('avisos')
+          .select('*')
+          .eq('publicado', true)
+          .order('data_publicacao', { ascending: false })
+          .limit(6)
+      ])
+
+      if (!rg.error) setGiras(rg.data || [])
+      if (!ra.error) setAvisos(ra.data || [])
+    }
+
+    carregarSitePublico()
+  }, [session])
+
+
   async function entrar(e) {
     e.preventDefault()
     setErro('')
@@ -1005,200 +1036,281 @@ function App() {
   }
 
   if (!session) {
-    const proximaPublica = giras.find(g => g.aberta_publico) || giras[0]
-    const girasPublicas = giras.filter(g => g.aberta_publico).slice(0, 6)
+    const proximaPublica = giras[0]
+    const girasPublicas = giras.slice(0, 8)
+    const avisosPublicos = avisos.slice(0, 4)
 
     return (
-      <main className="app">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">TEMPLO T.U CABOCLO TUPINAMBÁ ODE LEKE</p>
-            <h1>Fé, caridade, respeito e tradição.</h1>
-            <p className="muted">
-              Umbanda, acolhimento, orientação espiritual e desenvolvimento mediúnico.
-            </p>
-          </div>
+      <main className="app public-app">
+        <header className="public-header">
+          <button className="brand-button" onClick={() => setPublicSecao('inicio')}>
+            <span className="public-mark">TU</span>
+            <span className="brand-copy">
+              <small>TEMPLO DE UMBANDA</small>
+              <strong>Caboclo Tupinambá Ode Leke</strong>
+            </span>
+          </button>
 
-          <button className="ghost" onClick={() => setPublicSecao('login')}>
+          <button className="ghost public-login" onClick={() => setPublicSecao('login')}>
             Área do Filho
           </button>
         </header>
 
-        <nav className="admin-nav">
-          <button onClick={() => setPublicSecao('inicio')}>🏠 Início</button>
-          <button onClick={() => setPublicSecao('agenda')}>📅 Agenda</button>
-          <button onClick={() => setPublicSecao('templo')}>🏛️ O Templo</button>
-          <button onClick={() => setPublicSecao('buzios')}>🐚 Jogo de Búzios</button>
-          <button onClick={() => setPublicSecao('contato')}>📱 Contato</button>
+        <nav className="public-nav" aria-label="Navegação principal">
+          <button className={publicSecao === 'inicio' ? 'active' : ''} onClick={() => setPublicSecao('inicio')}>Início</button>
+          <button className={publicSecao === 'agenda' ? 'active' : ''} onClick={() => setPublicSecao('agenda')}>Agenda</button>
+          <button className={publicSecao === 'templo' ? 'active' : ''} onClick={() => setPublicSecao('templo')}>O Templo</button>
+          <button className={publicSecao === 'buzios' ? 'active' : ''} onClick={() => setPublicSecao('buzios')}>Jogo de Búzios</button>
+          <button className={publicSecao === 'contato' ? 'active' : ''} onClick={() => setPublicSecao('contato')}>Contato</button>
         </nav>
 
         {publicSecao === 'inicio' && (
           <>
-            <section className="dashboard-detail-grid">
-              <article className="card">
-                <span className="tag">UMBANDA • CARIDADE • AXÉ</span>
-                <h2>Templo T.U Caboclo Tupinambá Ode Leke</h2>
+            <section className="public-hero">
+              <div className="public-hero-copy">
+                <span className="eyebrow">FÉ • CARIDADE • RESPEITO • TRADIÇÃO</span>
+                <h1>Umbanda vivida com fundamento, responsabilidade e acolhimento.</h1>
                 <p>
-                  Uma casa de fé dedicada à caridade, ao desenvolvimento espiritual,
-                  à disciplina e ao respeito aos fundamentos da Umbanda.
+                  O Templo T.U Caboclo Tupinambá Ode Leke é uma casa dedicada à
+                  espiritualidade, ao desenvolvimento mediúnico, à orientação e à caridade.
                 </p>
                 <div className="actions">
-                  <button onClick={() => setPublicSecao('agenda')}>Ver próximas giras</button>
-                  <button className="ghost" onClick={() => setPublicSecao('buzios')}>
-                    Jogo de Búzios
-                  </button>
+                  <button onClick={() => setPublicSecao('agenda')}>Conhecer a agenda</button>
+                  <button className="ghost" onClick={() => setPublicSecao('templo')}>Conheça nossa casa</button>
                 </div>
-              </article>
+              </div>
 
-              <article className="card">
+              <div className="public-symbol" aria-hidden="true">
+                <div className="symbol-ring">
+                  <span>TU</span>
+                  <small>CABOCLO TUPINAMBÁ</small>
+                </div>
+              </div>
+            </section>
+
+            <section className="public-feature-grid">
+              <article className="card public-next">
                 <span className="tag">PRÓXIMA GIRA</span>
                 {proximaPublica ? (
                   <>
                     <h2>{proximaPublica.titulo}</h2>
-                    <h3>{dataBR(proximaPublica.data_gira)} • {horaBR(proximaPublica.horario)}</h3>
-                    {proximaPublica.linha && <p>{proximaPublica.linha}</p>}
+                    <p className="public-date">{dataBR(proximaPublica.data_gira)} • {horaBR(proximaPublica.horario)}</p>
+                    {proximaPublica.linha && <p><strong>Linha:</strong> {proximaPublica.linha}</p>}
+                    {proximaPublica.local && <p><strong>Local:</strong> {proximaPublica.local}</p>}
                     {proximaPublica.orientacoes && <p>{proximaPublica.orientacoes}</p>}
+                    <button onClick={() => setPublicSecao('agenda')}>Ver programação</button>
                   </>
                 ) : (
-                  <p>A programação da próxima gira será divulgada em breve.</p>
+                  <>
+                    <h2>Programação em atualização</h2>
+                    <p>A próxima gira pública será divulgada aqui assim que for cadastrada.</p>
+                    <button className="ghost" onClick={() => setPublicSecao('agenda')}>Abrir agenda</button>
+                  </>
                 )}
+              </article>
+
+              <article className="card public-buzios">
+                <span className="tag">ORIENTAÇÃO</span>
+                <h2>Jogo de Búzios</h2>
+                <p>
+                  Uma consulta para compreender caminhos, decisões e situações que
+                  precisam de maior clareza e direcionamento.
+                </p>
+                <button onClick={() => setPublicSecao('buzios')}>Informações e agendamento</button>
               </article>
             </section>
 
-            <section className="dashboard-detail-grid">
-              <article className="card">
-                <span className="tag">NOSSA CASA</span>
-                <h3>Umbanda com responsabilidade</h3>
-                <p>
-                  Trabalho espiritual, desenvolvimento, respeito aos guias e
-                  compromisso com a comunidade e com a caridade.
-                </p>
-              </article>
+            <section className="public-values">
+              <div><strong>Fé</strong><span>Vivência espiritual com respeito ao sagrado.</span></div>
+              <div><strong>Caridade</strong><span>Acolhimento e serviço como compromisso da casa.</span></div>
+              <div><strong>Disciplina</strong><span>Desenvolvimento com responsabilidade e fundamento.</span></div>
+              <div><strong>Ancestralidade</strong><span>Respeito às raízes, aos guias e à tradição.</span></div>
+            </section>
 
-              <article className="card">
-                <span className="tag">ORIENTAÇÃO</span>
-                <h3>Jogo de Búzios</h3>
-                <p>
-                  Consulta de orientação para compreender caminhos, decisões e
-                  momentos importantes da vida.
-                </p>
-                <button onClick={() => setPublicSecao('buzios')}>Informações e agenda</button>
-              </article>
+            {avisosPublicos.length > 0 && (
+              <section className="card wide public-notices">
+                <div className="section-heading">
+                  <div>
+                    <span className="tag">COMUNICADOS</span>
+                    <h2>Avisos do Templo</h2>
+                  </div>
+                </div>
+                <div className="public-notice-grid">
+                  {avisosPublicos.map(a => (
+                    <article className="public-notice" key={a.id}>
+                      <strong>{a.importante ? '⚠️ ' : ''}{a.titulo}</strong>
+                      <p>{a.mensagem}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section className="public-cta">
+              <div>
+                <span className="eyebrow">ÁREA RESERVADA</span>
+                <h2>Filhos da casa</h2>
+                <p>Consulte giras, função, materiais, mensalidades, avisos e estudos.</p>
+              </div>
+              <button onClick={() => setPublicSecao('login')}>Entrar na Área do Filho</button>
             </section>
           </>
         )}
 
         {publicSecao === 'agenda' && (
-          <section className="card wide">
-            <span className="tag">AGENDA DO TEMPLO</span>
-            <h2>Próximas giras</h2>
-            <div className="list">
+          <section className="public-page">
+            <div className="section-heading">
+              <div>
+                <span className="tag">AGENDA DO TEMPLO</span>
+                <h1>Próximas giras públicas</h1>
+                <p>Confira datas, horários e orientações divulgadas pela casa.</p>
+              </div>
+            </div>
+
+            <div className="public-agenda-grid">
               {girasPublicas.length ? girasPublicas.map(g => (
-                <div className="list-item" key={g.id}>
-                  <div>
-                    <strong>{g.titulo}</strong>
-                    <p>{dataBR(g.data_gira)} • {horaBR(g.horario)}</p>
-                    {g.linha && <small>{g.linha}</small>}
-                    {g.orientacoes && <p>{g.orientacoes}</p>}
-                  </div>
-                </div>
-              )) : <p>Nenhuma gira pública cadastrada no momento.</p>}
+                <article className="card public-agenda-card" key={g.id}>
+                  <span className="tag">{g.linha || 'GIRA'}</span>
+                  <h2>{g.titulo}</h2>
+                  <p className="public-date">{dataBR(g.data_gira)} • {horaBR(g.horario)}</p>
+                  {g.local && <p><strong>Local:</strong> {g.local}</p>}
+                  {g.orientacoes && <p>{g.orientacoes}</p>}
+                </article>
+              )) : (
+                <article className="card wide">
+                  <h2>Agenda em atualização</h2>
+                  <p>Nenhuma próxima gira pública foi cadastrada ainda.</p>
+                </article>
+              )}
             </div>
           </section>
         )}
 
         {publicSecao === 'templo' && (
-          <section className="card wide">
-            <span className="tag">O TEMPLO</span>
-            <h2>Templo T.U Caboclo Tupinambá Ode Leke</h2>
-            <p>
-              Nossa casa é dedicada à prática da Umbanda, à caridade e ao
-              desenvolvimento espiritual com responsabilidade, disciplina e
-              respeito aos fundamentos da religião.
-            </p>
-            <p>
-              As giras, estudos e orientações são organizados para fortalecer a
-              vivência religiosa, o compromisso com a casa e o respeito ao sagrado.
-            </p>
+          <section className="public-page">
+            <div className="section-heading">
+              <div>
+                <span className="tag">NOSSA CASA</span>
+                <h1>Templo T.U Caboclo Tupinambá Ode Leke</h1>
+                <p>Uma casa de Umbanda voltada à fé, à caridade e ao desenvolvimento espiritual responsável.</p>
+              </div>
+            </div>
+
+            <div className="public-feature-grid">
+              <article className="card">
+                <h2>Nossa vivência</h2>
+                <p>
+                  As atividades da casa são conduzidas com respeito aos fundamentos,
+                  aos guias, à espiritualidade e às responsabilidades de cada filho.
+                </p>
+              </article>
+              <article className="card">
+                <h2>Desenvolvimento</h2>
+                <p>
+                  Giras, estudos e orientações fazem parte do processo de aprendizado,
+                  disciplina e amadurecimento dentro da Umbanda.
+                </p>
+              </article>
+            </div>
+
+            <section className="public-values">
+              <div><strong>Respeito</strong><span>Ao sagrado, aos guias e a cada pessoa.</span></div>
+              <div><strong>Compromisso</strong><span>Com a casa e com o desenvolvimento.</span></div>
+              <div><strong>Caridade</strong><span>Como princípio essencial da vivência religiosa.</span></div>
+              <div><strong>Fundamento</strong><span>Estudo, tradição e responsabilidade.</span></div>
+            </section>
           </section>
         )}
 
         {publicSecao === 'buzios' && (
-          <section className="card wide">
-            <span className="tag">CONSULTAS</span>
-            <h2>Agenda para Jogo de Búzios</h2>
-            <p>
-              O Jogo de Búzios é uma consulta de orientação para auxiliar na
-              compreensão de caminhos, decisões e situações que precisam de clareza.
-            </p>
-            <p>
-              Para informações sobre valores e horários disponíveis, entre em contato
-              no privado.
-            </p>
-            <button onClick={() => setPublicSecao('contato')}>Quero informações</button>
+          <section className="public-page">
+            <div className="public-consult">
+              <span className="tag">CONSULTAS</span>
+              <h1>Jogo de Búzios</h1>
+              <p className="lead">
+                Uma consulta de orientação para compreender caminhos, decisões,
+                possibilidades e situações que precisam de clareza.
+              </p>
+              <div className="public-consult-points">
+                <span>Orientação</span>
+                <span>Decisões</span>
+                <span>Caminhos</span>
+                <span>Clareza</span>
+              </div>
+              <p>
+                A agenda é organizada diretamente pelo atendimento do Templo.
+                Informações sobre valores e horários são passadas no privado.
+              </p>
+              <button onClick={() => setPublicSecao('contato')}>Solicitar informações</button>
+            </div>
           </section>
         )}
 
         {publicSecao === 'contato' && (
-          <section className="card wide">
-            <span className="tag">CONTATO</span>
-            <h2>Fale com o Templo</h2>
-            <p>
-              Para informações sobre giras, consultas, orientações e atividades do
-              templo, utilize os canais oficiais de atendimento.
-            </p>
-            <p className="answer">
-              Aqui podemos colocar o WhatsApp oficial, Instagram e localização pública
-              quando você quiser.
-            </p>
+          <section className="public-page">
+            <div className="section-heading">
+              <div>
+                <span className="tag">CONTATO</span>
+                <h1>Fale com o Templo</h1>
+                <p>Informações sobre giras, consultas, orientações e atividades da casa.</p>
+              </div>
+            </div>
+
+            <div className="public-feature-grid">
+              <article className="card">
+                <h2>Atendimento</h2>
+                <p>
+                  Os canais oficiais de WhatsApp e redes sociais podem ser publicados
+                  aqui, mantendo os dados internos dos filhos separados da área pública.
+                </p>
+              </article>
+              <article className="card">
+                <h2>Jogo de Búzios</h2>
+                <p>Para valores e disponibilidade da agenda, solicite informações pelo atendimento do Templo.</p>
+                <button onClick={() => setPublicSecao('buzios')}>Sobre a consulta</button>
+              </article>
+            </div>
           </section>
         )}
 
         {publicSecao === 'login' && (
-          <section className="login-card" style={{ margin: '30px auto', maxWidth: 560 }}>
-            <div className="mark">TU</div>
-            <p className="eyebrow">ACESSO RESTRITO</p>
-            <h2>Área do Filho</h2>
-            <p className="muted">Entre com seu e-mail e senha cadastrados no templo.</p>
+          <section className="public-page">
+            <div className="login-card public-login-card">
+              <div className="mark">TU</div>
+              <p className="eyebrow">ACESSO RESTRITO</p>
+              <h1>Área do Filho</h1>
+              <p className="muted">Entre com seu e-mail e senha cadastrados no Templo.</p>
 
-            <form onSubmit={entrar}>
-              <label>
-                E-mail
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                />
-              </label>
+              <form onSubmit={entrar}>
+                <label>
+                  E-mail
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                </label>
+                <label>
+                  Senha
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                </label>
 
-              <label>
-                Senha
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                />
-              </label>
+                {erro && <p className="error">{erro}</p>}
 
-              {erro && <p className="error">{erro}</p>}
+                <button disabled={loading}>{loading ? 'Entrando...' : 'Entrar na Área do Filho'}</button>
+              </form>
 
-              <button disabled={loading}>
-                {loading ? 'Entrando...' : 'Entrar na Área do Filho'}
-              </button>
-            </form>
-
-            <button className="ghost" onClick={() => setPublicSecao('inicio')}>
-              Voltar ao site
-            </button>
+              <button className="ghost" onClick={() => setPublicSecao('inicio')}>Voltar ao site</button>
+            </div>
           </section>
         )}
 
-        <section className="card wide" style={{ marginTop: 28, textAlign: 'center' }}>
-          <strong>Templo T.U Caboclo Tupinambá Ode Leke</strong>
-          <p>Fé • Disciplina • Caridade • Ancestralidade</p>
-        </section>
+        <footer className="public-footer">
+          <div className="footer-brand">
+            <span className="public-mark small-mark">TU</span>
+            <div>
+              <strong>Templo T.U Caboclo Tupinambá Ode Leke</strong>
+              <p>Fé • Disciplina • Caridade • Ancestralidade</p>
+            </div>
+          </div>
+          <button className="ghost" onClick={() => setPublicSecao('login')}>Área do Filho</button>
+        </footer>
       </main>
     )
   }
