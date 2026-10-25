@@ -212,6 +212,7 @@ function App() {
   const [novoAviso, setNovoAviso] = useState({})
   const [novoEstudo, setNovoEstudo] = useState({})
   const [estudoAberto, setEstudoAberto] = useState(null)
+  const [publicSecao, setPublicSecao] = useState('inicio')
   const [novaSugestao, setNovaSugestao] = useState({
     assunto: '',
     mensagem: '',
@@ -455,6 +456,18 @@ function App() {
         p.confirmado
       ))
   }, [filhos, giras, presencas])
+
+  const resumoFrequencia = useMemo(() => {
+    const marcados = presencas.filter(p => p.presente === true || p.presente === false)
+    const presentes = marcados.filter(p => p.presente === true).length
+    const faltas = marcados.filter(p => p.presente === false).length
+    const percentual = marcados.length ? Math.round((presentes / marcados.length) * 100) : 0
+    return { presentes, faltas, percentual, total: marcados.length }
+  }, [presencas])
+
+  const mensalidadesPendentes = useMemo(() => {
+    return mensalidades.filter(m => Number(m.valor_pago || 0) < Number(m.valor || 0))
+  }, [mensalidades])
 
   function frequenciaFilho(filhoId) {
     const registros = presencas.filter(p => p.filho_id === filhoId)
@@ -992,54 +1005,199 @@ function App() {
   }
 
   if (!session) {
+    const proximaPublica = giras.find(g => g.aberta_publico) || giras[0]
+    const girasPublicas = giras.filter(g => g.aberta_publico).slice(0, 6)
+
     return (
-      <main className="login-wrap">
-        <section className="login-card">
-          <div className="mark">TU</div>
+      <main className="app">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">TEMPLO T.U CABOCLO TUPINAMBÁ ODE LEKE</p>
+            <h1>Fé, caridade, respeito e tradição.</h1>
+            <p className="muted">
+              Umbanda, acolhimento, orientação espiritual e desenvolvimento mediúnico.
+            </p>
+          </div>
 
-          <p className="eyebrow">TEMPLO DE UMBANDA</p>
+          <button className="ghost" onClick={() => setPublicSecao('login')}>
+            Área do Filho
+          </button>
+        </header>
 
-          <h1>
-            Caboclo Tupinambá
-            <br />
-            Ode Leke
-          </h1>
+        <nav className="admin-nav">
+          <button onClick={() => setPublicSecao('inicio')}>🏠 Início</button>
+          <button onClick={() => setPublicSecao('agenda')}>📅 Agenda</button>
+          <button onClick={() => setPublicSecao('templo')}>🏛️ O Templo</button>
+          <button onClick={() => setPublicSecao('buzios')}>🐚 Jogo de Búzios</button>
+          <button onClick={() => setPublicSecao('contato')}>📱 Contato</button>
+        </nav>
 
-          <p className="muted">
-            Área reservada aos filhos da casa
-          </p>
+        {publicSecao === 'inicio' && (
+          <>
+            <section className="dashboard-detail-grid">
+              <article className="card">
+                <span className="tag">UMBANDA • CARIDADE • AXÉ</span>
+                <h2>Templo T.U Caboclo Tupinambá Ode Leke</h2>
+                <p>
+                  Uma casa de fé dedicada à caridade, ao desenvolvimento espiritual,
+                  à disciplina e ao respeito aos fundamentos da Umbanda.
+                </p>
+                <div className="actions">
+                  <button onClick={() => setPublicSecao('agenda')}>Ver próximas giras</button>
+                  <button className="ghost" onClick={() => setPublicSecao('buzios')}>
+                    Jogo de Búzios
+                  </button>
+                </div>
+              </article>
 
-          <form onSubmit={entrar}>
-            <label>
-              E-mail
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
-            </label>
+              <article className="card">
+                <span className="tag">PRÓXIMA GIRA</span>
+                {proximaPublica ? (
+                  <>
+                    <h2>{proximaPublica.titulo}</h2>
+                    <h3>{dataBR(proximaPublica.data_gira)} • {horaBR(proximaPublica.horario)}</h3>
+                    {proximaPublica.linha && <p>{proximaPublica.linha}</p>}
+                    {proximaPublica.orientacoes && <p>{proximaPublica.orientacoes}</p>}
+                  </>
+                ) : (
+                  <p>A programação da próxima gira será divulgada em breve.</p>
+                )}
+              </article>
+            </section>
 
-            <label>
-              Senha
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
-            </label>
+            <section className="dashboard-detail-grid">
+              <article className="card">
+                <span className="tag">NOSSA CASA</span>
+                <h3>Umbanda com responsabilidade</h3>
+                <p>
+                  Trabalho espiritual, desenvolvimento, respeito aos guias e
+                  compromisso com a comunidade e com a caridade.
+                </p>
+              </article>
 
-            {erro && <p className="error">{erro}</p>}
+              <article className="card">
+                <span className="tag">ORIENTAÇÃO</span>
+                <h3>Jogo de Búzios</h3>
+                <p>
+                  Consulta de orientação para compreender caminhos, decisões e
+                  momentos importantes da vida.
+                </p>
+                <button onClick={() => setPublicSecao('buzios')}>Informações e agenda</button>
+              </article>
+            </section>
+          </>
+        )}
 
-            <button disabled={loading}>
-              {loading ? 'Entrando...' : 'Entrar na Área do Filho'}
+        {publicSecao === 'agenda' && (
+          <section className="card wide">
+            <span className="tag">AGENDA DO TEMPLO</span>
+            <h2>Próximas giras</h2>
+            <div className="list">
+              {girasPublicas.length ? girasPublicas.map(g => (
+                <div className="list-item" key={g.id}>
+                  <div>
+                    <strong>{g.titulo}</strong>
+                    <p>{dataBR(g.data_gira)} • {horaBR(g.horario)}</p>
+                    {g.linha && <small>{g.linha}</small>}
+                    {g.orientacoes && <p>{g.orientacoes}</p>}
+                  </div>
+                </div>
+              )) : <p>Nenhuma gira pública cadastrada no momento.</p>}
+            </div>
+          </section>
+        )}
+
+        {publicSecao === 'templo' && (
+          <section className="card wide">
+            <span className="tag">O TEMPLO</span>
+            <h2>Templo T.U Caboclo Tupinambá Ode Leke</h2>
+            <p>
+              Nossa casa é dedicada à prática da Umbanda, à caridade e ao
+              desenvolvimento espiritual com responsabilidade, disciplina e
+              respeito aos fundamentos da religião.
+            </p>
+            <p>
+              As giras, estudos e orientações são organizados para fortalecer a
+              vivência religiosa, o compromisso com a casa e o respeito ao sagrado.
+            </p>
+          </section>
+        )}
+
+        {publicSecao === 'buzios' && (
+          <section className="card wide">
+            <span className="tag">CONSULTAS</span>
+            <h2>Agenda para Jogo de Búzios</h2>
+            <p>
+              O Jogo de Búzios é uma consulta de orientação para auxiliar na
+              compreensão de caminhos, decisões e situações que precisam de clareza.
+            </p>
+            <p>
+              Para informações sobre valores e horários disponíveis, entre em contato
+              no privado.
+            </p>
+            <button onClick={() => setPublicSecao('contato')}>Quero informações</button>
+          </section>
+        )}
+
+        {publicSecao === 'contato' && (
+          <section className="card wide">
+            <span className="tag">CONTATO</span>
+            <h2>Fale com o Templo</h2>
+            <p>
+              Para informações sobre giras, consultas, orientações e atividades do
+              templo, utilize os canais oficiais de atendimento.
+            </p>
+            <p className="answer">
+              Aqui podemos colocar o WhatsApp oficial, Instagram e localização pública
+              quando você quiser.
+            </p>
+          </section>
+        )}
+
+        {publicSecao === 'login' && (
+          <section className="login-card" style={{ margin: '30px auto', maxWidth: 560 }}>
+            <div className="mark">TU</div>
+            <p className="eyebrow">ACESSO RESTRITO</p>
+            <h2>Área do Filho</h2>
+            <p className="muted">Entre com seu e-mail e senha cadastrados no templo.</p>
+
+            <form onSubmit={entrar}>
+              <label>
+                E-mail
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                Senha
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+              </label>
+
+              {erro && <p className="error">{erro}</p>}
+
+              <button disabled={loading}>
+                {loading ? 'Entrando...' : 'Entrar na Área do Filho'}
+              </button>
+            </form>
+
+            <button className="ghost" onClick={() => setPublicSecao('inicio')}>
+              Voltar ao site
             </button>
-          </form>
+          </section>
+        )}
 
-          <p className="footer-note">
-            Fé • Disciplina • Caridade • Ancestralidade
-          </p>
+        <section className="card wide" style={{ marginTop: 28, textAlign: 'center' }}>
+          <strong>Templo T.U Caboclo Tupinambá Ode Leke</strong>
+          <p>Fé • Disciplina • Caridade • Ancestralidade</p>
         </section>
       </main>
     )
@@ -1230,6 +1388,51 @@ function App() {
                     </div>
                   ))}
               </div>
+            </section>
+
+            <section className="dashboard-detail-grid">
+              <article className="card">
+                <span className="tag">📊 FREQUÊNCIA GERAL</span>
+                <h3>{resumoFrequencia.percentual}% de presença</h3>
+                <div className="gira-stats">
+                  <div><small>PRESENTES</small><strong>{resumoFrequencia.presentes}</strong></div>
+                  <div><small>FALTAS</small><strong>{resumoFrequencia.faltas}</strong></div>
+                  <div><small>REGISTROS</small><strong>{resumoFrequencia.total}</strong></div>
+                </div>
+              </article>
+
+              <article className="card">
+                <span className="tag">💰 PENDÊNCIAS FINANCEIRAS</span>
+                <h3>{mensalidadesPendentes.length} mensalidade(s) com saldo</h3>
+                <div className="mini-list">
+                  {mensalidadesPendentes.slice(0, 5).map(m => {
+                    const f = filhos.find(x => x.id === m.filho_id)
+                    const saldo = Number(m.valor || 0) - Number(m.valor_pago || 0)
+                    return (
+                      <div className="mini-row" key={m.id}>
+                        <div>
+                          <strong>{f?.nome || 'Filho da casa'}</strong>
+                          <small>Saldo: {moeda(saldo)}</small>
+                        </div>
+                        {f?.telefone && (
+                          <a
+                            className="button-link small"
+                            href={whatsappHref(
+                              f.telefone,
+                              `Olá, ${f.nome}! Passando para lembrar que existe um saldo de ${moeda(saldo)} referente à mensalidade do templo.`
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {!mensalidadesPendentes.length && <p>Nenhuma pendência financeira.</p>}
+                </div>
+              </article>
             </section>
 
             <section className="dashboard-detail-grid">
