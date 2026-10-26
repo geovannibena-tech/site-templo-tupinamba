@@ -1,13 +1,11 @@
 // Carregador seguro das melhorias opcionais.
 // Cada modulo e isolado: se uma melhoria falhar, o React principal continua funcionando.
-// IMPORTANTE: imports relativos e estaticamente analisaveis permitem que o Vite inclua
-// os addons no build de producao. Caminhos absolutos /src/... podem funcionar no dev,
-// mas nao existem como arquivos fonte no deploy final.
 import { supabase } from './supabase.js'
 
 const modulos = [
   { nome: 'presencas', carregar: () => import('./admin-presencas-addon.js') },
   { nome: 'area-filho', carregar: () => import('./area-filho-addon.js') },
+  { nome: 'area-filho-v2', carregar: () => import('./area-filho-v2.js') },
   { nome: 'central-gira', carregar: () => import('./gestao-dashboard-addon.js') }
 ]
 
@@ -39,15 +37,10 @@ async function iniciarMelhorias() {
     console.warn('[Templo] app principal nao montou; melhorias opcionais foram ignoradas por seguranca.')
     return
   }
-
-  for (const modulo of modulos) {
-    await carregarModuloSeguro(modulo)
-  }
+  for (const modulo of modulos) await carregarModuloSeguro(modulo)
 }
 
 function reiniciarAposAutenticacao() {
-  // Os addons podem ter sido carregados antes do login, quando as telas privadas ainda
-  // nao existiam. Este evento pede que cada addon reinstale seus controles apos o login.
   window.dispatchEvent(new CustomEvent('templo:auth-ready'))
 }
 
@@ -55,13 +48,10 @@ window.addEventListener('load', () => {
   setTimeout(() => iniciarMelhorias().catch(console.warn), 250)
 })
 
-// Reage ao login sem executar chamadas async do Supabase dentro do callback de auth.
 supabase.auth.onAuthStateChange((event, session) => {
   if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
     setTimeout(() => {
-      iniciarMelhorias()
-        .then(() => reiniciarAposAutenticacao())
-        .catch(console.warn)
+      iniciarMelhorias().then(() => reiniciarAposAutenticacao()).catch(console.warn)
     }, 350)
   }
 })
