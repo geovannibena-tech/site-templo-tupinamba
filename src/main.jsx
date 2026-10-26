@@ -209,6 +209,12 @@ function App() {
     descricao: ''
   })
   const [enviandoArquivo, setEnviandoArquivo] = useState(false)
+  const [solicitacoesCadastro, setSolicitacoesCadastro] = useState([])
+  const [solicitacaoPublica, setSolicitacaoPublica] = useState({
+    nome: '', email: '', telefone: '', data_nascimento: ''
+  })
+  const [criacaoAcesso, setCriacaoAcesso] = useState({ email: '', senha: '' })
+  const [enviandoSolicitacao, setEnviandoSolicitacao] = useState(false)
   const arquivoInputRef = useRef(null)
   const [novaFuncaoGira, setNovaFuncaoGira] = useState({ gira_id: '', filho_id: '', funcao: '' })
 
@@ -301,6 +307,93 @@ function App() {
     carregarSitePublico()
   }, [session])
 
+
+  async function enviarSolicitacaoCadastro(e) {
+    e.preventDefault()
+    setErro('')
+    setEnviandoSolicitacao(true)
+
+    try {
+      const payload = {
+        nome: solicitacaoPublica.nome.trim(),
+        email: solicitacaoPublica.email.trim().toLowerCase(),
+        telefone: solicitacaoPublica.telefone.trim() || null,
+        data_nascimento: solicitacaoPublica.data_nascimento || null
+      }
+
+      const { error } = await supabase
+        .from('solicitacoes_cadastro')
+        .insert(payload)
+
+      if (error) throw error
+
+      setSolicitacaoPublica({ nome: '', email: '', telefone: '', data_nascimento: '' })
+      alert('Solicitação enviada. Aguarde a aprovação do administrador. Depois, volte à Área do Filho para criar sua senha.')
+      setPublicSecao('login')
+    } catch (e) {
+      setErro(e.message || 'Não foi possível enviar a solicitação.')
+    } finally {
+      setEnviandoSolicitacao(false)
+    }
+  }
+
+  async function criarAcessoAprovado(e) {
+    e.preventDefault()
+    setErro('')
+    setLoading(true)
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: criacaoAcesso.email.trim().toLowerCase(),
+        password: criacaoAcesso.senha
+      })
+      if (error) throw error
+
+      alert('Acesso criado. Se o Supabase pedir confirmação por e-mail, confirme o endereço e depois entre normalmente.')
+      setCriacaoAcesso({ email: '', senha: '' })
+      setPublicSecao('login')
+    } catch (e) {
+      setErro(e.message || 'Não foi possível criar o acesso. Confirme se seu cadastro já foi aprovado.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function aprovarSolicitacao(item) {
+    const cargo = window.prompt('Cargo/função do filho:', item.cargo || 'Médium em Desenvolvimento')
+    if (cargo === null) return
+    const dia = window.prompt('Dia do vencimento da mensalidade:', item.dia_vencimento || '10')
+    if (dia === null) return
+    const valor = window.prompt('Valor da mensalidade:', item.valor_mensalidade || '0')
+    if (valor === null) return
+
+    const { error } = await supabase
+      .from('solicitacoes_cadastro')
+      .update({
+        status: 'aprovado',
+        cargo: cargo || null,
+        dia_vencimento: Number(dia) || null,
+        valor_mensalidade: Number(String(valor).replace(',', '.')) || 0,
+        data_entrada: hojeISO(),
+        aprovado_em: new Date().toISOString(),
+        aprovado_por: session.user.id
+      })
+      .eq('id', item.id)
+
+    if (error) return alert(error.message)
+    await carregarAdmin()
+    alert('Cadastro aprovado. Agora o filho pode usar o e-mail aprovado para criar a senha na Área do Filho.')
+  }
+
+  async function recusarSolicitacao(item) {
+    if (!window.confirm(`Recusar a solicitação de ${item.nome}?`)) return
+    const { error } = await supabase
+      .from('solicitacoes_cadastro')
+      .update({ status: 'recusado' })
+      .eq('id', item.id)
+    if (error) return alert(error.message)
+    await carregarAdmin()
+  }
 
   async function entrar(e) {
     e.preventDefault()
@@ -396,6 +489,12 @@ function App() {
     setPresencas(rpre.data || [])
     setFuncoesGira(rfun.data || [])
     setArquivosNuvem(rarq.data || [])
+    const { data: solicitacoes, error: erroSolicitacoes } = await supabase
+      .from('solicitacoes_cadastro')
+      .select('*')
+      .order('criado_em', { ascending: false })
+    if (erroSolicitacoes) throw erroSolicitacoes
+    setSolicitacoesCadastro(solicitacoes || [])
   }
 
   async function enviarArquivoNuvem(e) {
@@ -1477,6 +1576,60 @@ function App() {
           </section>
         )}
 
+        {publicSecao === 'solicitar-cadastro' && (
+          <section className="public-page">
+            <div className="login-card public-login-card">
+              <div className="mark">TU</div>
+              <p className="eyebrow">CADASTRO COM APROVAÇÃO</p>
+              <h1>Solicitar cadastro</h1>
+              <p className="muted">
+                Preencha seus dados. O acesso à Área do Filho só será liberado após aprovação do administrador.
+              </p>
+              <form onSubmit={enviarSolicitacaoCadastro}>
+                <label>Nome completo
+                  <input value={solicitacaoPublica.nome} onChange={e => setSolicitacaoPublica({...solicitacaoPublica, nome:e.target.value})} required />
+                </label>
+                <label>E-mail
+                  <input type="email" value={solicitacaoPublica.email} onChange={e => setSolicitacaoPublica({...solicitacaoPublica, email:e.target.value})} required />
+                </label>
+                <label>WhatsApp
+                  <input value={solicitacaoPublica.telefone} onChange={e => setSolicitacaoPublica({...solicitacaoPublica, telefone:e.target.value})} required />
+                </label>
+                <label>Data de nascimento
+                  <input type="date" value={solicitacaoPublica.data_nascimento} onChange={e => setSolicitacaoPublica({...solicitacaoPublica, data_nascimento:e.target.value})} required />
+                </label>
+                {erro && <p className="error">{erro}</p>}
+                <button disabled={enviandoSolicitacao}>{enviandoSolicitacao ? 'Enviando...' : 'Enviar solicitação'}</button>
+              </form>
+              <button className="ghost" onClick={() => setPublicSecao('login')}>Voltar</button>
+            </div>
+          </section>
+        )}
+
+        {publicSecao === 'criar-acesso' && (
+          <section className="public-page">
+            <div className="login-card public-login-card">
+              <div className="mark">TU</div>
+              <p className="eyebrow">CADASTRO APROVADO</p>
+              <h1>Criar minha senha</h1>
+              <p className="muted">
+                Use exatamente o mesmo e-mail que foi aprovado pelo administrador.
+              </p>
+              <form onSubmit={criarAcessoAprovado}>
+                <label>E-mail aprovado
+                  <input type="email" value={criacaoAcesso.email} onChange={e => setCriacaoAcesso({...criacaoAcesso, email:e.target.value})} required />
+                </label>
+                <label>Crie uma senha
+                  <input type="password" minLength="6" value={criacaoAcesso.senha} onChange={e => setCriacaoAcesso({...criacaoAcesso, senha:e.target.value})} required />
+                </label>
+                {erro && <p className="error">{erro}</p>}
+                <button disabled={loading}>{loading ? 'Criando...' : 'Criar meu acesso'}</button>
+              </form>
+              <button className="ghost" onClick={() => setPublicSecao('login')}>Voltar</button>
+            </div>
+          </section>
+        )}
+
         {publicSecao === 'login' && (
           <section className="public-page">
             <div className="login-card public-login-card">
@@ -1500,6 +1653,14 @@ function App() {
                 <button disabled={loading}>{loading ? 'Entrando...' : 'Entrar na Área do Filho'}</button>
               </form>
 
+              <div className="actions" style={{ marginTop: 14 }}>
+                <button className="ghost" onClick={() => setPublicSecao('solicitar-cadastro')}>
+                  Sou filho da casa / Solicitar cadastro
+                </button>
+                <button className="ghost" onClick={() => setPublicSecao('criar-acesso')}>
+                  Cadastro aprovado? Criar minha senha
+                </button>
+              </div>
               <button className="ghost" onClick={() => setPublicSecao('inicio')}>Voltar ao site</button>
             </div>
           </section>
@@ -1552,6 +1713,9 @@ function App() {
           </button>
           <button onClick={() => setPagina('filhos')}>
             👥 Filhos
+          </button>
+          <button onClick={() => setPagina('solicitacoes')}>
+            🔔 Solicitações {solicitacoesCadastro.filter(x => x.status === 'pendente').length ? `(${solicitacoesCadastro.filter(x => x.status === 'pendente').length})` : ''}
           </button>
           <button onClick={() => setPagina('mensalidades')}>
             💰 Mensalidades
@@ -1830,6 +1994,39 @@ function App() {
               </div>
             </section>
           </>
+        )}
+
+        {pagina === 'solicitacoes' && (
+          <section className="card wide">
+            <span className="tag">🔔 CADASTROS</span>
+            <h3>Solicitações de Cadastro</h3>
+            <p className="muted">
+              O filho envia os próprios dados. Você confere e define cargo, vencimento e mensalidade antes de liberar o acesso.
+            </p>
+            <div className="list" style={{ marginTop: 18 }}>
+              {solicitacoesCadastro.map(item => (
+                <div className="list-item" key={item.id}>
+                  <div>
+                    <strong>{item.nome}</strong>
+                    <p>{item.email} • {item.telefone || 'Sem telefone'}</p>
+                    <small>
+                      Nascimento: {dataBR(item.data_nascimento)} • Status: {item.status}
+                      {item.status === 'aprovado' && ` • ${item.cargo || 'Sem cargo'} • ${dinheiro(item.valor_mensalidade || 0)}`}
+                    </small>
+                  </div>
+                  <div className="actions">
+                    {item.status === 'pendente' && (
+                      <>
+                        <button className="small" onClick={() => aprovarSolicitacao(item)}>Aprovar</button>
+                        <button className="danger small" onClick={() => recusarSolicitacao(item)}>Recusar</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {!solicitacoesCadastro.length && <p>Nenhuma solicitação recebida.</p>}
+            </div>
+          </section>
         )}
 
         {pagina === 'filhos' && (
