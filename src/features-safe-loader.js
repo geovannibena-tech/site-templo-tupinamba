@@ -1,22 +1,25 @@
 // Carregador seguro das melhorias opcionais.
 // Cada modulo e isolado: se uma melhoria falhar, o React principal continua funcionando.
+// IMPORTANTE: imports relativos e estaticamente analisaveis permitem que o Vite inclua
+// os addons no build de producao. Caminhos absolutos /src/... podem funcionar no dev,
+// mas nao existem como arquivos fonte no deploy final.
 import { supabase } from './supabase.js'
 
 const modulos = [
-  '/src/admin-presencas-addon.js',
-  '/src/area-filho-addon.js',
-  '/src/gestao-dashboard-addon.js'
+  { nome: 'presencas', carregar: () => import('./admin-presencas-addon.js') },
+  { nome: 'area-filho', carregar: () => import('./area-filho-addon.js') },
+  { nome: 'central-gira', carregar: () => import('./gestao-dashboard-addon.js') }
 ]
 
 const carregados = new Set()
 
-async function carregarModuloSeguro(src) {
-  if (carregados.has(src)) return
+async function carregarModuloSeguro(modulo) {
+  if (carregados.has(modulo.nome)) return
   try {
-    await import(src)
-    carregados.add(src)
+    await modulo.carregar()
+    carregados.add(modulo.nome)
   } catch (erro) {
-    console.warn(`[Templo] melhoria opcional nao carregada: ${src}`, erro)
+    console.warn(`[Templo] melhoria opcional nao carregada: ${modulo.nome}`, erro)
   }
 }
 
@@ -43,9 +46,8 @@ async function iniciarMelhorias() {
 }
 
 function reiniciarAposAutenticacao() {
-  // Os addons podem ter sido importados antes do login. Nesse caso o codigo do modulo
-  // ja esta em cache, mas a tela administrativa ainda nao existia. Disparamos um evento
-  // proprio para que os addons reinstalem seus controles quando o usuario entrar.
+  // Os addons podem ter sido carregados antes do login, quando as telas privadas ainda
+  // nao existiam. Este evento pede que cada addon reinstale seus controles apos o login.
   window.dispatchEvent(new CustomEvent('templo:auth-ready'))
 }
 
@@ -53,9 +55,7 @@ window.addEventListener('load', () => {
   setTimeout(() => iniciarMelhorias().catch(console.warn), 250)
 })
 
-// O Supabase recomenda onAuthStateChange para reagir ao login/logout.
-// Nao fazemos chamadas async ao Supabase dentro do callback; apenas reagendamos o trabalho,
-// evitando bloqueios no cliente de autenticacao.
+// Reage ao login sem executar chamadas async do Supabase dentro do callback de auth.
 supabase.auth.onAuthStateChange((event, session) => {
   if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
     setTimeout(() => {
