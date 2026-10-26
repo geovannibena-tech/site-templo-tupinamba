@@ -48,10 +48,12 @@ async function abrirCentral() {
 
 async function iniciar() {
   try {
-    if (!(await ehAdmin()) || document.querySelector('#gda-open')) return
+    if (document.querySelector('#gda-open')) return
+    if (!(await ehAdmin())) return
     const estilo = document.createElement('style')
+    estilo.id = 'gda-style'
     estilo.textContent = `#gda-open{position:fixed;right:18px;bottom:145px;z-index:9995;background:#c6a15b;color:#07120e;border:0;border-radius:99px;padding:12px 16px;font-weight:900}#gda-box{display:none;position:fixed;inset:0;z-index:9999;background:rgba(2,8,6,.94);overflow:auto;padding:20px}.gda-shell{max-width:1100px;margin:auto;background:#08150f;color:#fff;padding:20px;border:1px solid #6b5932;border-radius:18px}.gda-head{display:flex;justify-content:space-between}.gda-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.gda-card{padding:14px;background:#102219;border:1px solid #403721;border-radius:12px}.gda-card b{display:block;font-size:23px}.gda-card.wide{grid-column:1/-1}.gda-card p{border-bottom:1px solid rgba(255,255,255,.07);padding:8px 0}.gda-card span{opacity:.75}@media(max-width:700px){.gda-grid{grid-template-columns:1fr 1fr}}`
-    document.head.appendChild(estilo)
+    if (!document.querySelector('#gda-style')) document.head.appendChild(estilo)
     const botao = document.createElement('button')
     botao.id = 'gda-open'; botao.textContent = '📊 Central da Gira'; botao.onclick = abrirCentral
     const caixa = document.createElement('div')
@@ -61,4 +63,9 @@ async function iniciar() {
   } catch (e) { console.warn('[Central da Gira iniciar]', e) }
 }
 
-setTimeout(() => iniciar().catch(console.warn), 800)
+function reagendarInicio() {
+  setTimeout(() => iniciar().catch(console.warn), 500)
+}
+
+window.addEventListener('templo:auth-ready', reagendarInicio)
+reagendarInicio()
