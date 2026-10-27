@@ -1,0 +1,22 @@
+{
+  "rewrites": [
+    { "source": "/app-filho", "destination": "/index.html" },
+    { "source": "/app-filho/", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    }
+  ]
+}
