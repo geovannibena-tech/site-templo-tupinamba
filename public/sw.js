@@ -1,4 +1,4 @@
-const CACHE='meu-templo-shell-v3';
+const CACHE='meu-templo-shell-v4';
 const SHELL=['/manifest.webmanifest','/app-icon.svg','/app-icon-192.svg','/app-icon-512.svg'];
 
 self.addEventListener('install',event=>{
@@ -25,13 +25,11 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then(cached=>cached || fetch(event.request).then(response=>{
-      if(response && response.ok){
-        const copy=response.clone();
-        caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});
-      }
-      return response;
-    }))
-  );
+  event.respondWith(caches.match(event.request).then(cached=>cached || fetch(event.request).then(response=>{
+    if(response && response.ok){
+      const copy=response.clone();
+      caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});
+    }
+    return response;
+  })));
 });
