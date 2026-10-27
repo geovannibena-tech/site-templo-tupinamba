@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-title" content="Meu Templo" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/app-icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/app-icon.svg" />
-  <title>Templo T.U Caboclo Tupinamba Ode Leke</title>
+  <link rel="apple-touch-icon" href="/app-icon-192.svg" />
+  <title>Meu Templo - Área do Filho</title>
 </head>
 <body>
   <div id="root"></div>
@@ -21,7 +21,7 @@
   <script type="module" src="/src/app-filho-entry.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(console.warn));
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(console.warn));
     }
   </script>
 </body>
