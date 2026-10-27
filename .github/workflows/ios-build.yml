@@ -1,0 +1,54 @@
+name: Gerar iPhone Meu Templo
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'src/**'
+      - 'public/**'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Gerar site
+        run: npm run build
+
+      - name: Criar projeto iOS
+        run: npx cap add ios
+
+      - name: Sincronizar iOS
+        run: npx cap sync ios
+
+      - name: Compilar para simulador iPhone
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+
+      - name: Compactar app de teste
+        run: |
+          cd ios/build/Build/Products/Debug-iphonesimulator
+          zip -r Meu-Templo-iPhone-Simulator.zip App.app
+
+      - name: Disponibilizar build iPhone
+        uses: actions/upload-artifact@v4
+        with:
+          name: Meu-Templo-iPhone-Simulator
+          path: ios/build/Build/Products/Debug-iphonesimulator/Meu-Templo-iPhone-Simulator.zip
+          retention-days: 30
