@@ -1,10 +1,14 @@
-// Entrada exclusiva do PWA dos filhos: /?app=filho
-const ehAppFilho = new URLSearchParams(location.search).get('app') === 'filho';
+// Entrada exclusiva do PWA dos filhos: /app-filho
+const ehAppFilho = location.pathname === '/app-filho' || location.pathname === '/app-filho/' || new URLSearchParams(location.search).get('app') === 'filho';
+
+// Migra o link antigo para a rota estável, sem query string na identidade do PWA.
+if (new URLSearchParams(location.search).get('app') === 'filho' && location.pathname === '/') {
+  history.replaceState(null, '', '/app-filho');
+}
 
 function configurarEntradaApp(){
  if(!ehAppFilho) return;
  document.documentElement.classList.add('modo-app-filho');
- // Mantem o link exclusivo focado no acesso do filho quando ainda nao ha sessao.
  let tentativas=0;
  const timer=setInterval(()=>{
   const root=document.querySelector('#root');
@@ -22,21 +26,31 @@ function configurarEntradaApp(){
 function instalarPWA(){
  if(!ehAppFilho) return;
  let promptInstalacao=null;
+ const instalado=()=>window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptInstalacao=e;mostrar();});
  const mostrar=()=>{
-  if(document.querySelector('#instalar-meu-templo')) return;
+  if(instalado() || document.querySelector('#instalar-meu-templo')) return;
   const b=document.createElement('button');
   b.id='instalar-meu-templo'; b.type='button'; b.textContent='📲 Instalar Meu Templo';
   b.onclick=async()=>{
-   if(promptInstalacao){promptInstalacao.prompt();await promptInstalacao.userChoice;promptInstalacao=null;b.remove();return;}
+   if(promptInstalacao){
+    promptInstalacao.prompt();
+    const escolha=await promptInstalacao.userChoice;
+    if(escolha.outcome==='accepted') b.textContent='Instalando Meu Templo…';
+    else b.textContent='📲 Instalar Meu Templo';
+    promptInstalacao=null;
+    return;
+   }
    const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-   alert(ios?'No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”.':'No menu do navegador, escolha “Instalar app” ou “Adicionar à tela inicial”.');
+   alert(ios?'No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”.':'No menu ⋮ do Chrome, escolha “Instalar app” ou “Adicionar à tela inicial”.');
   };
   document.body.appendChild(b);
  };
- // O link exclusivo sempre mostra uma forma clara de instalar.
  setTimeout(mostrar,900);
- window.addEventListener('appinstalled',()=>document.querySelector('#instalar-meu-templo')?.remove());
+ window.addEventListener('appinstalled',()=>{
+   document.querySelector('#instalar-meu-templo')?.remove();
+   document.documentElement.classList.add('pwa-instalado');
+ });
 }
 
 function css(){
