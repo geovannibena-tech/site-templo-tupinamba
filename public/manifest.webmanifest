@@ -1,9 +1,9 @@
 {
-  "id": "/?app=filho",
+  "id": "/app-filho",
   "name": "Meu Templo - Área do Filho",
   "short_name": "Meu Templo",
   "description": "Área do Filho do T.U Caboclo Tupinambá Ile Axé Odé Leke",
-  "start_url": "/?app=filho",
+  "start_url": "/app-filho",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone"],
