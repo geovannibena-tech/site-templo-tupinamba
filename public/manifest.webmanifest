@@ -1,13 +1,23 @@
 {
-  "name": "Templo Tupinambá - Área do Filho",
+  "id": "/?app=filho",
+  "name": "Meu Templo - Área do Filho",
   "short_name": "Meu Templo",
   "description": "Área do Filho do T.U Caboclo Tupinambá Ile Axé Odé Leke",
-  "start_url": "/",
+  "start_url": "/?app=filho",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#07120e",
   "theme_color": "#07120e",
   "orientation": "portrait-primary",
   "lang": "pt-BR",
-  "categories": ["lifestyle", "education"]
+  "categories": ["lifestyle", "education"],
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
