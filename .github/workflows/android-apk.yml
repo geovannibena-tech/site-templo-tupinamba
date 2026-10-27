@@ -7,7 +7,6 @@ on:
     paths:
       - 'capacitor.config.ts'
       - 'package.json'
-      - 'package-lock.json'
       - 'src/**'
       - 'public/**'
       - '.github/workflows/android-apk.yml'
@@ -25,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Configurar Java
         uses: actions/setup-java@v4
