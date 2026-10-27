@@ -9,6 +9,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Meu Templo" />
   <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/app-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/app-icon.svg" />
   <title>Templo T.U Caboclo Tupinamba Ode Leke</title>
 </head>
 <body>
@@ -16,6 +18,7 @@
   <script src="/compat.js"></script>
   <script type="module" src="/src/main.jsx"></script>
   <script type="module" src="/src/features-safe-loader.js"></script>
+  <script type="module" src="/src/pwa-install.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(console.warn));
