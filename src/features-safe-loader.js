@@ -6,6 +6,7 @@ const modulos = [
   { nome: 'presencas', carregar: () => import('./admin-presencas-addon.js') },
   { nome: 'area-filho', carregar: () => import('./area-filho-addon.js') },
   { nome: 'area-filho-v2', carregar: () => import('./area-filho-v2.js') },
+  { nome: 'app-filho-mobile', carregar: () => import('./app-filho-mobile.js') },
   { nome: 'central-gira', carregar: () => import('./gestao-dashboard-addon.js') }
 ]
 
