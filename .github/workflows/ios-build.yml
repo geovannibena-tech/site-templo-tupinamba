@@ -11,11 +11,13 @@ on:
       - 'public/**'
       - '.github/workflows/ios-build.yml'
 
+permissions:
+  contents: read
+
 jobs:
   build-ios:
     runs-on: macos-latest
-    permissions:
-      contents: read
+    timeout-minutes: 45
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
@@ -31,22 +33,37 @@ jobs:
       - name: Gerar site
         run: npm run build
 
-      - name: Criar projeto iOS
-        run: npx cap add ios
-
-      - name: Sincronizar iOS
-        run: npx cap sync ios
-
-      - name: Compilar para simulador iPhone
+      - name: Criar e sincronizar projeto iOS
         run: |
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build
+          if [ ! -d ios/App ]; then npx cap add ios; fi
+          npx cap sync ios
 
-      - name: Compactar app de teste
+      - name: Diagnosticar ferramentas iOS
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available | head -35
+          ls -la ios/App
+
+      - name: Compilar app para simulador sem assinatura
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Compactar app do simulador
         run: |
           cd ios/build/Build/Products/Debug-iphonesimulator
+          test -d App.app
           zip -r Meu-Templo-iPhone-Simulator.zip App.app
 
-      - name: Disponibilizar build iPhone
+      - name: Disponibilizar build de simulador
         uses: actions/upload-artifact@v4
         with:
           name: Meu-Templo-iPhone-Simulator
