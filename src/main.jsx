@@ -473,28 +473,43 @@ function App() {
       supabase.from('arquivos_templo').select('*').order('criado_em', { ascending: false })
     ])
 
-    const respostas = [rf, rg, rm, rmen, rp, ra, re, rs, rpre, rfun, rarq]
-    const falha = respostas.find(x => x.error)
-
-    if (falha?.error) throw falha.error
-
-    setFilhos(rf.data || [])
-    setGiras(rg.data || [])
-    setMateriais(rm.data || [])
-    setMensalidades(rmen.data || [])
-    setPagamentos(rp.data || [])
-    setAvisos(ra.data || [])
-    setEstudos(re.data || [])
-    setSugestoes(rs.data || [])
-    setPresencas(rpre.data || [])
-    setFuncoesGira(rfun.data || [])
-    setArquivosNuvem(rarq.data || [])
+    // Cada módulo é carregado independentemente: uma falha secundária não
+    // deve esconder os cadastros e pagamentos que foram lidos com sucesso.
+    const modulos = [
+      ['Filhos', rf, setFilhos],
+      ['Giras', rg, setGiras],
+      ['Materiais', rm, setMateriais],
+      ['Mensalidades', rmen, setMensalidades],
+      ['Pagamentos', rp, setPagamentos],
+      ['Avisos', ra, setAvisos],
+      ['Estudos', re, setEstudos],
+      ['Sugestões', rs, setSugestoes],
+      ['Presenças', rpre, setPresencas],
+      ['Funções', rfun, setFuncoesGira],
+      ['Arquivos', rarq, setArquivosNuvem]
+    ]
+    const falhas = []
+    for (const [nome, resposta, atualizar] of modulos) {
+      if (resposta.error) {
+        falhas.push(nome + ': ' + resposta.error.message)
+        continue // Mantém os dados já exibidos; não substitui por lista vazia.
+      }
+      atualizar(resposta.data || [])
+    }
+    if (falhas.length) {
+      console.warn('Falhas de leitura no painel:', falhas)
+      setMsg('Atenção: alguns módulos não carregaram: ' + falhas.join(' | '))
+    }
     const { data: solicitacoes, error: erroSolicitacoes } = await supabase
       .from('solicitacoes_cadastro')
       .select('*')
       .order('criado_em', { ascending: false })
-    if (erroSolicitacoes) throw erroSolicitacoes
-    setSolicitacoesCadastro(solicitacoes || [])
+    if (erroSolicitacoes) {
+      console.warn('Solicitações não carregadas:', erroSolicitacoes.message)
+      setMsg('Atenção: não foi possível carregar as solicitações de cadastro.')
+    } else {
+      setSolicitacoesCadastro(solicitacoes || [])
+    }
   }
 
   async function enviarArquivoNuvem(e) {
